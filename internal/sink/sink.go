@@ -114,6 +114,14 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 		}
 	}
 
+	if opts.VirtualSink == "" {
+		what := source
+		if source == "@DEFAULT_MONITOR@" {
+			what = "the default output"
+		}
+		log.Infof("mirroring %s; no new audio device (use --virtual-sink for a selectable output)", what)
+	}
+
 	kbps := opts.Bitrate
 	if opts.Format == "wav" {
 		kbps = 1536
