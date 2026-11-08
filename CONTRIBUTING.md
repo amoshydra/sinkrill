@@ -43,6 +43,9 @@ Releases are automated with [Release Please](https://github.com/googleapis/relea
   `thrum-linux-amd64/arm64` binaries with checksums.
 - The first release is bootstrapped from `0.0.0` in
   `.release-please-manifest.json`, so it becomes `0.1.0`.
+- While the version is below 1.0.0, the pre-release policy is:
+  - `feat:` and `fix:` bump the **patch** (`0.1.0` → `0.1.1`)
+  - `feat!:` / `BREAKING CHANGE` bumps the **minor** (`0.1.0` → `0.2.0`)
 
 Release PRs opened with `GITHUB_TOKEN` do not trigger CI (GitHub suppresses
 token-created events); the merge commit on `main` does.

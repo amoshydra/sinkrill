@@ -1,12 +1,22 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "go",
-  "include-component-in-tag": false,
-  "bump-minor-pre-major": true,
   "packages": {
     ".": {
       "release-type": "go",
-      "package-name": "thrum"
+      "package-name": "thrum",
+      "include-component-in-tag": false,
+      "bump-patch-for-minor-pre-major": true,
+      "bump-minor-pre-major": true,
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "build", "section": "Build System" },
+        { "type": "test", "section": "Tests" },
+        { "type": "docs", "section": "Documentation" },
+        { "type": "chore", "section": "Chores" },
+        { "type": "ci", "section": "CI/CD" }
+      ]
     }
   }
 }
