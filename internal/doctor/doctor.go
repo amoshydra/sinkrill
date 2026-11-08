@@ -111,7 +111,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) int {
 			fail("capture is not running")
 			hint("restart: systemctl --user restart thrum")
 		case status.Capture.Stalled:
-			fail("capture is stalled (no data for %.1f s)", float64(status.Capture.LastDataMS)/1000)
+			fail("capture is stalled (no bytes for %.1f s)", float64(status.Capture.LastDataMS)/1000)
 			hint("restart: systemctl --user restart thrum")
 			hint("the 5 s watchdog should recover this automatically")
 		default:

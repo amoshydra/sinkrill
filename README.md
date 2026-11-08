@@ -287,6 +287,10 @@ systemctl --user restart thrum
 # or, if running in a terminal: Ctrl+C, then start it again
 ```
 
+The watchdog only fires when the capture delivers **zero bytes**. Silence is
+still PCM data — an idle PC produces silent frames continuously — so "nothing
+is playing" does not trigger it.
+
 Then check the three volume/routing stages:
 
 ```bash
@@ -352,10 +356,12 @@ that is not a Thrum or device error. If the tone is silent on the speaker, run
   `--keepalive` to let Thrum re-tune automatically. Note that this can also
   undo a manual stop from the Sonos app.
 
-**The log says `no audio data ... restarting capture`**
+**The log says `capture delivered no bytes ... restarting`**
 
 - That is the watchdog recovering a stalled `parec`. It should recover in a few
   seconds. If it repeats, check `pactl list short sources` and run `thrum doctor`.
+- This is not triggered by silence: an idle sink still delivers silent PCM
+  frames. It only fires when the capture process produces zero bytes.
 
 **Capture restarts in the logs**
 

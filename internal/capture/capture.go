@@ -303,18 +303,21 @@ func (c *Capture) watchdog(ctx context.Context) {
 			c.mu.Lock()
 			running := c.running
 			stopping := c.stopping
+			produced := c.produced
 			cmd := c.cmd
 			lastData := c.lastDataAt
 			c.mu.Unlock()
 
-			if !running || stopping || cmd == nil || cmd.Process == nil {
+			if !running || stopping || !produced || cmd == nil || cmd.Process == nil {
 				continue
 			}
 			if lastData.IsZero() || time.Since(lastData) <= c.stallTimeout {
 				continue
 			}
 
-			c.log.Warnf("no audio data for %s; restarting capture", c.stallTimeout)
+			// Silence still arrives as PCM frames; this only fires when the
+			// capture process is alive but delivering literally zero bytes.
+			c.log.Warnf("capture delivered no bytes for %s; restarting", c.stallTimeout)
 			c.mu.Lock()
 			c.lastDataAt = time.Now() // avoid repeated signals before exit
 			c.mu.Unlock()
