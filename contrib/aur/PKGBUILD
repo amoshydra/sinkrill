@@ -1,0 +1,27 @@
+# Maintainer: Amos Hydra <https://github.com/amoshydra>
+pkgname=sonos-sink
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Stream this computer's audio to Sonos speakers over the LAN"
+arch=('x86_64' 'aarch64')
+url="https://github.com/amoshydra/sonos-sink"
+license=('MIT')
+depends=('libpulse')
+optdepends=('ffmpeg: MP3 streaming mode')
+makedepends=('go')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP') # replace with `updpkgsums` output after the first release
+
+build() {
+	cd "$pkgname-$pkgver"
+	export CGO_ENABLED=0
+	go build -trimpath -ldflags "-s -w -X main.version=$pkgver" -o sonos-sink .
+}
+
+package() {
+	cd "$pkgname-$pkgver"
+	install -Dm755 sonos-sink "$pkgdir/usr/bin/sonos-sink"
+	install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+	install -Dm644 contrib/systemd/sonos-sink.service \
+		"$pkgdir/usr/lib/systemd/user/$pkgname.service"
+}

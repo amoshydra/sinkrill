@@ -1,13 +1,16 @@
 # sonos-sink
 
-[![npm](https://img.shields.io/npm/v/sonos-sink.svg)](https://www.npmjs.com/package/sonos-sink)
 [![CI](https://github.com/amoshydra/sonos-sink/actions/workflows/ci.yml/badge.svg)](https://github.com/amoshydra/sonos-sink/actions/workflows/ci.yml)
-[![license](https://img.shields.io/npm/l/sonos-sink.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/amoshydra/sonos-sink)](https://github.com/amoshydra/sonos-sink/releases)
+[![Go](https://img.shields.io/github/go-mod/go-version/amoshydra/sonos-sink)](go.mod)
+[![License](https://img.shields.io/github/license/amoshydra/sonos-sink)](LICENSE)
 
 Stream this computer's audio output to Sonos speakers over your LAN — an
-AirPlay-like "PC audio" sink for Linux. It defaults to uncompressed **WAV PCM**
-because Sonos gives a WAV file stream far less buffering than an
-internet-radio-style MP3 stream (measured: **~70 ms** buffered vs **~4.8 s**).
+AirPlay-like "PC audio" sink for Linux, in a single static binary.
+
+It defaults to uncompressed **WAV PCM** because Sonos gives a WAV file stream
+far less buffering than an internet-radio style MP3 stream: **~0.1 s** buffered
+instead of **~4.8 s** (measured; see [Latency](#latency)).
 
 ```bash
 sonos-sink                 # auto-detect the only Sonos speaker and start streaming
@@ -18,12 +21,22 @@ sonos-sink --no-tune       # only serve the stream; tune Sonos yourself
 
 Press `Ctrl+C` to stop playback and shut down.
 
+## Why
+
+- **Looks like a speaker.** `--virtual-sink` creates a real PipeWire/PulseAudio
+  output device, so you pick **Sonos** in your audio settings or per-app.
+- **Low latency by default.** WAV over plain HTTP avoids Sonos's internet-radio
+  pre-buffer: ~0.1 s buffered, measured, instead of ~4.8 s with MP3.
+- **No Node, no npm, no Icecast.** One static binary; it shells out to
+  `parec`/`pactl` (already part of your audio stack) and optionally `ffmpeg`.
+- **No cloud, no account.** Audio never leaves your LAN.
+
 ## How it works
 
 ```
-┌──────────────┐  PulseAudio/PipeWire  ┌───────────────┐  WAV/PCM over HTTP  ┌──────────┐
-│  PC audio    │ ────────────────────► │    ffmpeg     │ ──────────────────► │  Sonos   │
-│ (any app)    │  monitor source       │ pcm_s16le     │  ~1.5 Mbps          │ speaker  │
+┌──────────────┐  PipeWire/PulseAudio  ┌───────────────┐  WAV/PCM over HTTP  ┌──────────┐
+│  PC audio    │ ────────────────────► │    parec      │ ──────────────────► │  Sonos   │
+│ (any app)    │  monitor source       │ s16le 48 kHz  │  ~1.5 Mbps          │ speaker  │
 └──────────────┘                       └───────┬───────┘                     └────▲─────┘
                                                │                                  │
                                        ┌───────▼────────┐      http:// (file)      │
@@ -32,65 +45,66 @@ Press `Ctrl+C` to stop playback and shut down.
                                        └────────────────┘
 ```
 
-1. `ffmpeg` records the monitor of your current audio output (`@DEFAULT_MONITOR@`),
-   or of the virtual **Sonos** device created by `--virtual-sink`.
-2. It emits raw 48 kHz/16-bit stereo PCM (or MP3 with `--format mp3`) into a tiny
-   HTTP server.
-3. The server exposes a continuous WAV stream at `/stream.wav`.
-4. Sonos is told to play `http://<lan-ip>:<port>/stream.wav`. Because that looks
-   like a file rather than internet radio, Sonos skips its multi-second radio
-   pre-buffer. `--format mp3` uses `x-rincon-mp3radio://` instead (radio handling,
-   ~192 kbps, more buffering).
+1. `parec` records the monitor of your current audio output
+   (`@DEFAULT_MONITOR@`), or of the virtual **Sonos** device created by
+   `--virtual-sink`. If `parec` is missing, `ffmpeg -f pulse` is used instead.
+2. The bytes are served as a continuous 48 kHz/16-bit stereo WAV stream.
+3. Sonos is told to play `http://<lan-ip>:<port>/stream.wav`. Because that looks
+   like a file rather than internet radio, Sonos skips its multi-second
+   pre-buffer.
+4. `--format mp3` encodes with ffmpeg and uses `x-rincon-mp3radio://` instead
+   (radio handling, ~192 kbps, much more buffering).
 
-There is **no warm-up buffer** by default, so a newly connected speaker starts at
-the current live position. Add `--warmup 500` if you have flaky Wi-Fi and would
-rather trade latency for robustness.
-
-## Why
-
-- **It looks like a speaker.** `--virtual-sink` creates a real PipeWire/PulseAudio
-  output device, so you pick **Sonos** in your audio settings or per-app.
-- **Low latency by default.** WAV over plain HTTP avoids Sonos's internet-radio
-  pre-buffer: ~70 ms buffered, measured, instead of ~4.8 s with MP3.
-- **No cloud, no account.** Audio never leaves your LAN.
-- **No extra services.** One Node process plus ffmpeg; no Icecast, no container.
-
-Linux only: it captures PipeWire/PulseAudio monitor sources (and can create a
-null sink). It does not touch the Sonos app or need any Sonos account.
+There is **no warm-up buffer** by default, so a newly connected speaker starts
+at the current live position. Add `--warmup 500` if you have flaky Wi-Fi and
+would rather trade latency for robustness.
 
 ## Requirements
 
 - **Linux** with PipeWire or PulseAudio
-- **ffmpeg** (only needs `libmp3lame` if you use `--format mp3`)
-- **Node.js 20+**
+- `parec` and `pactl` (in `libpulse` on Arch, `pulseaudio-utils` on Debian)
+- `ffmpeg` only if you use `--format mp3`
+- Go 1.22+ only if you build from source
 
 ```bash
 # Arch
-sudo pacman -S ffmpeg nodejs
+sudo pacman -S libpulse          # ffmpeg is optional (MP3 mode)
 
 # Debian/Ubuntu
-sudo apt install ffmpeg nodejs
-```
-
-Check that libmp3lame is available (only needed for `--format mp3`):
-
-```bash
-ffmpeg -hide_banner -encoders | grep libmp3lame
+sudo apt install pulseaudio-utils
 ```
 
 ## Install
 
-### npm (recommended)
+### Binary (recommended)
+
+Download the latest release, verify the checksum, and put it on your `PATH`:
 
 ```bash
-npm install -g sonos-sink
+curl -LO https://github.com/amoshydra/sonos-sink/releases/latest/download/sonos-sink-linux-amd64
+curl -LO https://github.com/amoshydra/sonos-sink/releases/latest/download/sonos-sink-linux-amd64.sha256
+sha256sum -c sonos-sink-linux-amd64.sha256
+
+install -Dm755 sonos-sink-linux-amd64 ~/.local/bin/sonos-sink
 sonos-sink --help
 ```
 
-Or run it without installing:
+Use `sonos-sink-linux-arm64` on ARM machines.
+
+### Go
 
 ```bash
-npx sonos-sink "Living Room"
+go install github.com/amoshydra/sonos-sink@latest
+```
+
+Make sure `$(go env GOPATH)/bin` is on your `PATH`.
+
+### Arch (AUR)
+
+A `PKGBUILD` is in [`contrib/aur`](contrib/aur). Once the package is in the AUR:
+
+```bash
+yay -S sonos-sink
 ```
 
 ### From source
@@ -98,12 +112,8 @@ npx sonos-sink "Living Room"
 ```bash
 git clone https://github.com/amoshydra/sonos-sink.git
 cd sonos-sink
-pnpm install
-pnpm build
-
-node dist/cli.js --help
-# or make it available as `sonos-sink`
-pnpm link --global
+make            # builds ./sonos-sink
+make install    # installs to /usr/local/bin (PREFIX=/... to override)
 ```
 
 ## Usage
@@ -142,12 +152,13 @@ sonos-sink --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 | `--host <ip>` | auto | LAN IP advertised to Sonos |
 | `--bind <address>` | `0.0.0.0` | HTTP bind address |
 | `--ffmpeg <path>` | `ffmpeg` | ffmpeg binary |
+| `--parec <path>` | `parec` | parec binary |
 | `--volume <0-100>` | unchanged | Set the speaker volume on start |
 | `--keepalive` | off | Re-tune if the speaker stops by itself |
 | `--no-tune` | off | Don't control Sonos; only serve the stream |
 | `--virtual-sink [name]` | off | Create an output device (default `sonos`) and capture it |
 | `--station <name>` | `PC Audio` | Name shown on the speaker |
-| `-v, --verbose` | off | Verbose logs, including ffmpeg output |
+| `-v, --verbose` | off | Verbose logs |
 
 ### HTTP endpoints
 
@@ -164,23 +175,21 @@ Point VLC, a browser, or anything else at `http://<lan-ip>:8567/stream.wav`
 
 ## Latency
 
-The defaults are already tuned for the lowest latency this approach allows:
+The defaults are tuned for the lowest latency this approach allows:
 
 - **WAV PCM over plain HTTP** — Sonos treats it as a file, so it skips the
   internet-radio pre-buffer (the biggest single win)
 - no warm-up replay (`--warmup 0`)
-- ~12 ms capture fragments (`-fragment_size 2400`)
-- no resampling, no MP3 encoder delay
-- packet flushing and `TCP_NODELAY` on the audio socket
+- ~20 ms capture latency (`parec --latency-msec=20`)
+- no resampling or encoder delay in WAV mode
+- `TCP_NODELAY` on the audio socket and direct packet writes
 
-In practice this lands at roughly **0.1 s end-to-end**: the probe in
-`scripts/latency-probe.mjs` measures ~70 ms of buffered audio on the Sonos side,
-plus ~12–25 ms of capture. MP3 radio streaming measures ~4.8 s with the same
-probe. That makes WAV mode usable for casual video and latency-sensitive apps —
-but it is still not a 0 ms, wired-grade path.
+Measured with the built-in probe: **~0.10 s** of buffered audio on the Sonos
+side for WAV, versus **~4.8 s** for MP3 radio streaming. Add the capture side
+(~20–30 ms) and you are at roughly **0.1 s end-to-end**.
 
-If you need the absolute minimum, it cannot be done over the network. The only
-Sonos paths that go lower:
+That is good enough for casual video and most desktop audio. It is not a
+wired-grade path; if you need the absolute minimum:
 
 | Path | Latency | Notes |
 |------|---------|-------|
@@ -228,8 +237,8 @@ sonos-sink --source sonos.monitor
 
 ## Control
 
-`sonos-sink` runs in the foreground. `Ctrl+C` stops the speaker, kills ffmpeg,
-removes the virtual device, and exits.
+`sonos-sink` runs in the foreground. `Ctrl+C` stops the speaker, kills the
+capture process, removes the virtual device, and exits.
 
 | What | How |
 |------|-----|
@@ -242,21 +251,8 @@ removes the virtual device, and exits.
 
 ## Run as a user service
 
-Create `~/.config/systemd/user/sonos-sink.service`:
-
-```ini
-[Unit]
-Description=Stream PC audio to Sonos
-After=pipewire-pulse.service
-
-[Service]
-ExecStart=%h/path/to/sonos-sink/bin/sonos-sink --device "Living Room"
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-```
+Copy [`contrib/systemd/sonos-sink.service`](contrib/systemd/sonos-sink.service)
+to `~/.config/systemd/user/`, edit the room name, then:
 
 ```bash
 systemctl --user daemon-reload
@@ -295,37 +291,34 @@ journalctl --user -u sonos-sink -f
 
 **The speaker stops after a while**
 
-- Live radio streams stop themselves when the connection hiccups. Restart with
+- Live streams stop themselves when the connection hiccups. Restart with
   `--keepalive` to let `sonos-sink` re-tune automatically. Note that this can
   also undo a manual stop from the Sonos app.
 
 **Capture restarts in the logs**
 
-- `ffmpeg` is restarted automatically if it exits, and the speaker is retuned.
-  Check the warnings for the reason (usually an invalid `--source`).
+- `parec`/`ffmpeg` is restarted automatically if it exits, and the speaker is
+  retuned. Check the warnings for the reason (usually an invalid `--source`).
 
 ## Development
 
 ```bash
-pnpm install
-pnpm dev -- --no-tune        # tsx, no build step
-pnpm typecheck
-pnpm build
+make test        # go test ./...
+make vet         # go vet ./...
+make build       # ./sonos-sink
+make fmt
 ```
 
-Measure how much audio Sonos buffers (stop the running server first; the probe
-retunes the speaker, then restores nothing — just restart `sonos-sink` after):
+Measure how much audio Sonos buffers (stop the running service first; the probe
+retunes the speaker):
 
 ```bash
-node scripts/latency-probe.mjs wav 30
-node scripts/latency-probe.mjs mp3 30
+./sonos-sink probe wav 30
+./sonos-sink probe mp3 30
 ```
 
-Publishing runs the build automatically:
-
-```bash
-pnpm publish
-```
+The project started as a Node/TypeScript CLI and was rewritten in Go for a
+single static binary. The old implementation is in git history.
 
 ## License
 

@@ -1,3 +1,0 @@
-# pnpm >= 10 reads build-script approvals from here.
-allowBuilds:
-  esbuild: true

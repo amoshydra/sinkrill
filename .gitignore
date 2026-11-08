@@ -1,6 +1,8 @@
-node_modules/
-dist/
-*.log
-*.tgz
-*.tsbuildinfo
+# Go build output
+/sonos-sink
+/dist/
+*.test
+*.out
+coverage.out
+
 .DS_Store
