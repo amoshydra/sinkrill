@@ -14,7 +14,7 @@ import (
 
 func testServer(t *testing.T) *Server {
 	t.Helper()
-	hub := NewHub(0, 1536, logx.NewSilent())
+	hub := NewHub(0, 192000, logx.NewSilent())
 	srv := NewServer(ServerOptions{
 		Port:    0,
 		Bind:    "127.0.0.1",

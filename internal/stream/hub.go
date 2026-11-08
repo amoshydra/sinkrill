@@ -9,30 +9,67 @@ import (
 	"github.com/amoshydra/sonos-sink/internal/logx"
 )
 
-// clientQueue bounds per-listener buffering. Live audio is dropped rather than
-// queued forever when a client falls behind.
-const clientQueue = 256
-
 type Client struct {
 	ID    int
 	Label string
 
-	conn  net.Conn
-	ch    chan []byte
-	done  chan struct{}
-	once  sync.Once
-	sent  atomic.Int64
-	drops atomic.Int64
+	conn net.Conn
+	hub  *Hub
+	log  *logx.Logger
 
-	hub *Hub
-	log *logx.Logger
+	mu          sync.Mutex
+	queue       [][]byte
+	queuedBytes int
+	maxQueued   int
+	drops       int64
+
+	signal    chan struct{}
+	done      chan struct{}
+	closeOnce sync.Once
+	sent      atomic.Int64
+}
+
+// push enqueues a chunk, dropping the oldest audio when the client falls
+// behind. Live audio must never accumulate: a slow listener should skip, not
+// drift seconds behind.
+func (c *Client) push(chunk []byte) {
+	c.mu.Lock()
+	if len(chunk) > c.maxQueued {
+		c.drops++
+		c.mu.Unlock()
+		return
+	}
+	for len(c.queue) > 0 && c.queuedBytes+len(chunk) > c.maxQueued {
+		c.queuedBytes -= len(c.queue[0])
+		c.queue = c.queue[1:]
+		c.drops++
+	}
+	c.queue = append(c.queue, chunk)
+	c.queuedBytes += len(chunk)
+	c.mu.Unlock()
+
+	select {
+	case c.signal <- struct{}{}:
+	default:
+	}
+}
+
+func (c *Client) pop() ([]byte, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.queue) == 0 {
+		return nil, false
+	}
+	chunk := c.queue[0]
+	c.queue = c.queue[1:]
+	c.queuedBytes -= len(chunk)
+	return chunk, true
 }
 
 func (c *Client) run() {
 	defer c.conn.Close()
 	for {
-		select {
-		case chunk := <-c.ch:
+		if chunk, ok := c.pop(); ok {
 			_ = c.conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
 			n, err := c.conn.Write(chunk)
 			if n > 0 {
@@ -42,6 +79,11 @@ func (c *Client) run() {
 				c.hub.Remove(c)
 				return
 			}
+			continue
+		}
+
+		select {
+		case <-c.signal:
 		case <-c.done:
 			return
 		}
@@ -49,10 +91,23 @@ func (c *Client) run() {
 }
 
 func (c *Client) close() {
-	c.once.Do(func() {
+	c.closeOnce.Do(func() {
 		close(c.done)
 		_ = c.conn.Close()
 	})
+}
+
+func (c *Client) outstanding() int64 {
+	c.mu.Lock()
+	queued := c.queuedBytes
+	c.mu.Unlock()
+	return c.sent.Load() + int64(queued)
+}
+
+func (c *Client) queued() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return int64(c.queuedBytes)
 }
 
 type Hub struct {
@@ -61,6 +116,7 @@ type Hub struct {
 	warmup      [][]byte
 	warmupBytes int
 	warmupLimit int
+	maxQueued   int
 	nextID      int
 	total       atomic.Int64
 
@@ -69,17 +125,31 @@ type Hub struct {
 
 // NewHub creates a fan-out hub. warmupMS > 0 replays recent audio to new
 // listeners (higher latency, more resilient); 0 starts at live.
-func NewHub(warmupMS, bitrateKbps int, log *logx.Logger) *Hub {
-	limit := 0
+//
+// bytesPerSecond is used to size both the warm-up ring and the per-client
+// queue. The queue is capped at ~125 ms of audio so a slow client cannot
+// build up seconds of delay.
+func NewHub(warmupMS, bytesPerSecond int, log *logx.Logger) *Hub {
+	warmupLimit := 0
 	if warmupMS > 0 {
-		limit = bitrateKbps * 1000 / 8 * warmupMS / 1000
-		if limit < 4096 {
-			limit = 4096
+		warmupLimit = bytesPerSecond * warmupMS / 1000
+		if warmupLimit < 4096 {
+			warmupLimit = 4096
 		}
 	}
+
+	maxQueued := bytesPerSecond / 8
+	if maxQueued < 16*1024 {
+		maxQueued = 16 * 1024
+	}
+	if maxQueued > 256*1024 {
+		maxQueued = 256 * 1024
+	}
+
 	return &Hub{
 		clients:     map[*Client]struct{}{},
-		warmupLimit: limit,
+		warmupLimit: warmupLimit,
+		maxQueued:   maxQueued,
 		log:         log,
 	}
 }
@@ -102,11 +172,7 @@ func (h *Hub) Write(chunk []byte) {
 
 	h.mu.RLock()
 	for c := range h.clients {
-		select {
-		case c.ch <- chunk:
-		default:
-			c.drops.Add(1)
-		}
+		c.push(chunk)
 	}
 	h.mu.RUnlock()
 }
@@ -116,21 +182,19 @@ func (h *Hub) Add(conn net.Conn, label string) *Client {
 	h.mu.Lock()
 	h.nextID++
 	c := &Client{
-		ID:    h.nextID,
-		Label: label,
-		conn:  conn,
-		ch:    make(chan []byte, clientQueue),
-		done:  make(chan struct{}),
-		hub:   h,
-		log:   h.log,
+		ID:        h.nextID,
+		Label:     label,
+		conn:      conn,
+		hub:       h,
+		log:       h.log,
+		maxQueued: h.maxQueued,
+		signal:    make(chan struct{}, 1),
+		done:      make(chan struct{}),
 	}
 	h.clients[c] = struct{}{}
 	if h.warmupLimit > 0 {
 		for _, chunk := range h.warmup {
-			select {
-			case c.ch <- chunk:
-			default:
-			}
+			c.push(chunk)
 		}
 	}
 	count := len(h.clients)
@@ -182,7 +246,7 @@ func (h *Hub) TotalBytes() int64 {
 }
 
 // MaxSentBytes is the number of media bytes written to the furthest-along
-// listener. Used by the latency probe.
+// listener.
 func (h *Hub) MaxSentBytes() int64 {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -193,4 +257,45 @@ func (h *Hub) MaxSentBytes() int64 {
 		}
 	}
 	return max
+}
+
+// MaxOutstandingBytes is sent + queued for the furthest-along listener. This
+// is what the latency probe must use: bytes still in our queue have not been
+// played yet.
+func (h *Hub) MaxOutstandingBytes() int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	var max int64
+	for c := range h.clients {
+		if v := c.outstanding(); v > max {
+			max = v
+		}
+	}
+	return max
+}
+
+// MaxQueuedBytes is the largest per-client queue, in bytes.
+func (h *Hub) MaxQueuedBytes() int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	var max int64
+	for c := range h.clients {
+		if v := c.queued(); v > max {
+			max = v
+		}
+	}
+	return max
+}
+
+// TotalDrops counts chunks discarded for falling behind.
+func (h *Hub) TotalDrops() int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	var total int64
+	for c := range h.clients {
+		c.mu.Lock()
+		total += c.drops
+		c.mu.Unlock()
+	}
+	return total
 }

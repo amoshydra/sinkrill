@@ -47,6 +47,8 @@ type Status struct {
 	Capture       CaptureStatus      `json:"capture"`
 	Listeners     int                `json:"listeners"`
 	ListenerBytes int64              `json:"listenerBytes"`
+	QueuedBytes   int64              `json:"queuedBytes"`
+	DroppedChunks int64              `json:"droppedChunks"`
 }
 
 type DeviceStatus struct {
@@ -115,7 +117,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 		kbps = 1536
 	}
 
-	hub := stream.NewHub(opts.WarmupMS, kbps, log)
+	hub := stream.NewHub(opts.WarmupMS, stream.BytesPerSecond(opts.Format, opts.Bitrate), log)
 
 	var stateMu sync.RWMutex
 	var uri string
@@ -154,6 +156,8 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 			WarmupMS:      opts.WarmupMS,
 			Listeners:     hub.Count(),
 			ListenerBytes: hub.TotalBytes(),
+			QueuedBytes:   hub.MaxQueuedBytes(),
+			DroppedChunks: hub.TotalDrops(),
 			Capture: CaptureStatus{
 				Running:   snap.Running,
 				Restarts:  snap.Restarts,

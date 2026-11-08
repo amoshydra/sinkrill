@@ -50,7 +50,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 	}
 	speaker := sonos.NewClient(device.IP)
 
-	hub := stream.NewHub(0, opts.Bitrate, log)
+	hub := stream.NewHub(0, stream.BytesPerSecond(opts.Format, opts.Bitrate), log)
 	captureFormat := capture.FormatMP3
 	if opts.Format == "wav" {
 		captureFormat = capture.FormatPCM
@@ -166,7 +166,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 			continue
 		}
 
-		delivered := float64(hub.MaxSentBytes()) / float64(bytesPerSec)
+		delivered := float64(hub.MaxOutstandingBytes()) / float64(bytesPerSec)
 		samples = append(samples, delivered-float64(position.Seconds))
 	}
 

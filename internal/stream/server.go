@@ -135,6 +135,9 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		_ = tcp.SetNoDelay(true)
+		// Keep the kernel send buffer small (it is doubled by Linux). A large
+		// buffer lets seconds of audio pile up while the speaker is buffering.
+		_ = tcp.SetWriteBuffer(32 * 1024)
 	}
 
 	fmt.Fprint(brw, "HTTP/1.1 200 OK\r\n")
