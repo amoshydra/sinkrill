@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/amoshydra/thrum/compare/v0.1.0...v0.1.1) (2026-11-08)
+
+
+### Documentation
+
+* recommend --virtual-sink in the quick start ([08ea984](https://github.com/amoshydra/thrum/commit/08ea98460a422cfb684f56016219649945333f76))
+
 ## 0.1.0 (2026-11-08)
 
 
