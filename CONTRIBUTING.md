@@ -46,6 +46,9 @@ Releases are automated with [Release Please](https://github.com/googleapis/relea
 - While the version is below 1.0.0, the pre-release policy is:
   - `feat:` and `fix:` bump the **patch** (`0.1.0` → `0.1.1`)
   - `feat!:` / `BREAKING CHANGE` bumps the **minor** (`0.1.0` → `0.2.0`)
+- Only `feat`, `fix`, `perf`, and `revert` open a release. `docs`, `chore`,
+  `ci`, `build`, `test`, `refactor`, and `style` are hidden from the changelog
+  and ride along with the next release instead of opening their own.
 
 Release PRs opened with `GITHUB_TOKEN` do not trigger CI (GitHub suppresses
 token-created events); the merge commit on `main` does.
