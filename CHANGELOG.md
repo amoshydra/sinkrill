@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/amoshydra/sinkrill/compare/v0.1.0...v0.2.0) (2026-11-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* the Go module path, binary, systemd unit, and AUR package are renamed. `go install github.com/amoshydra/thrum@latest` no longer resolves; use github.com/amoshydra/sinkrill instead.
+
+### Features
+
+* hint when no virtual sink is configured ([0a1c9c9](https://github.com/amoshydra/sinkrill/commit/0a1c9c93033c0a323a5b04bdc072e15ac70ee97a))
+* rename the project to Sinkrill ([bc335c5](https://github.com/amoshydra/sinkrill/commit/bc335c592d3610d37d1f0531936581a2fa9ff87e))
+
 ## 0.1.0 (2026-11-08)
 
 
