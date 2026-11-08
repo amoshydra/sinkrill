@@ -16,11 +16,13 @@ far less buffering than an internet-radio style MP3 stream: **~0.1 s** buffered
 instead of **~4.8 s** (measured; see [Latency](#latency)).
 
 ```bash
-thrum                      # auto-detect the only Sonos speaker and start streaming
-thrum "Living Room"        # pick a room by name
-thrum --virtual-sink       # appear as a "Thrum" output device in your audio selector
-thrum --no-tune            # only serve the stream; tune Sonos yourself
+thrum --virtual-sink                 # recommended: add a "Thrum" output device
+thrum "Living Room" --virtual-sink   # pick a room
+thrum --no-tune                      # only serve the stream; tune Sonos yourself
 ```
+
+Without `--virtual-sink`, Thrum mirrors your current output instead: the PC and
+Sonos both play, and no new device appears.
 
 Press `Ctrl+C` to stop playback and shut down.
 
@@ -34,6 +36,30 @@ Press `Ctrl+C` to stop playback and shut down.
 - **No Node, no npm, no Icecast.** One static binary; it shells out to
   `parec`/`pactl` (already part of your audio stack) and optionally `ffmpeg`.
 - **No cloud, no account.** Audio never leaves your LAN.
+
+## Two ways to use it
+
+### Output device (recommended)
+
+`--virtual-sink` creates a PipeWire/PulseAudio output named **Thrum**:
+
+```bash
+thrum --virtual-sink
+```
+
+Pick **Thrum** in your audio settings (or per-app in `pavucontrol`), and only
+the audio routed to it goes to Sonos. The device disappears when Thrum exits.
+
+### Mirror the current output
+
+Without the flag, Thrum captures whatever is playing on your default output:
+
+```bash
+thrum
+```
+
+The PC and Sonos both play, and no new device appears. Use this when you just
+want the room to hear what the PC is playing.
 
 ## How it works
 
@@ -123,12 +149,16 @@ make install    # installs to /usr/local/bin (PREFIX=/... to override)
 ## Usage
 
 ```bash
-# Let Thrum find the speaker (works when there is exactly one)
-thrum
+# Recommended: add the "Thrum" output device
+thrum --virtual-sink
 
 # Choose a room by name, or a speaker by IP
+thrum "Living Room" --virtual-sink
+thrum --device 192.168.1.42 --virtual-sink
+
+# Mirror the current output instead (no new device)
+thrum
 thrum "Living Room"
-thrum --device 192.168.1.42
 
 # List what's on the network
 thrum devices
@@ -163,7 +193,7 @@ thrum --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 | `--volume <0-100>` | unchanged | Set the speaker volume on start |
 | `--keepalive` | off | Re-tune if the speaker stops by itself |
 | `--no-tune` | off | Don't control Sonos; only serve the stream |
-| `--virtual-sink [name]` | off | Create an output device (default `thrum`) and capture it |
+| `--virtual-sink [name]` | off | Create the **Thrum** output device (recommended); default name `thrum` |
 | `--station <name>` | `Thrum` | Name shown on the speaker |
 | `-v, --verbose` | off | Verbose logs |
 
@@ -211,10 +241,9 @@ instead of ~1.5 Mbps, at the cost of Sonos's radio buffer.
 WAV mode advertises a 4 GB "file", so after roughly 6 hours of playback the
 speaker may stop. `--keepalive` re-tunes automatically.
 
-## Use it as a selectable output device
+## Output device mode (recommended)
 
-By default Thrum mirrors your current output, so the PC and Sonos both play.
-Add `--virtual-sink` and it creates a real output device called **Thrum** in
+`--virtual-sink` creates a real output device called **Thrum** in
 PipeWire/PulseAudio:
 
 ```bash
@@ -249,10 +278,10 @@ process, removes the virtual device, and exits.
 
 | What | How |
 |------|-----|
-| Start / stop | `thrum` / `Ctrl+C` (or `thrum stop "Living Room"`) |
+| Start / stop | `thrum --virtual-sink` / `Ctrl+C` (or `thrum stop "Living Room"`) |
 | Volume | Sonos app, or `--volume 40` on start |
 | Pause / resume | Sonos app; long pauses may drop the stream connection, then restart `thrum` (or run with `--keepalive`) |
-| Change room | stop, then `thrum "Other Room"` |
+| Change room | stop, then `thrum "Other Room" --virtual-sink` |
 | Inspect | `curl http://<lan-ip>:8567/status` |
 | Preview | open `http://<lan-ip>:8567/stream.wav` in VLC or a browser |
 

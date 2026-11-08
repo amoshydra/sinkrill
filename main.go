@@ -89,13 +89,14 @@ func printHelp() {
 	fmt.Print(`thrum — stream this computer's audio to Sonos speakers
 
 Usage:
-  thrum [options]           Start streaming (same as "start")
-  thrum "Living Room"       Pick a speaker by room name
-  thrum devices [options]   List Sonos devices on the LAN
-  thrum stop [options]      Stop playback on a device
-  thrum probe [options]     Measure buffered latency
-  thrum doctor [options]    Diagnose silence, capture, and routing
-  thrum version             Print the version
+  thrum --virtual-sink             Add a "Thrum" output device (recommended)
+  thrum --virtual-sink "Living Room"
+  thrum                            Mirror the current output (no new device)
+  thrum devices [options]          List Sonos devices on the LAN
+  thrum stop [options]             Stop playback on a device
+  thrum doctor [options]           Diagnose silence, capture, and routing
+  thrum probe [options]            Measure buffered latency
+  thrum version                    Print the version
 
 Options for start:
   -d, --device <name|ip>    Sonos room name or IP (auto-detected if only one)
@@ -111,7 +112,7 @@ Options for start:
       --volume <0-100>      Set the speaker volume on start
       --keepalive           Re-tune Sonos if it stops by itself
       --no-tune             Only serve the stream; do not control Sonos
-      --virtual-sink [name] Create an output device (default "thrum")
+      --virtual-sink [name] Create the Thrum output device (recommended)
       --station <name>      Name shown on the speaker (default "Thrum")
   -v, --verbose             Verbose logs
 
@@ -152,7 +153,7 @@ func runStart(args []string) int {
 	intVar(fs, &opts.Volume, "volume", "", -1, "set speaker volume (0-100)")
 	boolVar(fs, &opts.Keepalive, "keepalive", "", false, "re-tune if the speaker stops")
 	boolVar(fs, &noTune, "no-tune", "", false, "only serve the stream")
-	fs.Var(&virtualSink, "virtual-sink", "create/use an output device (default thrum)")
+	fs.Var(&virtualSink, "virtual-sink", "create/use the Thrum output device (recommended)")
 	strVar(fs, &opts.Station, "station", "", opts.Station, "station name shown on the speaker")
 	verbose := boolVar(fs, nil, "verbose", "v", false, "verbose logging")
 
