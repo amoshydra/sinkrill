@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/amoshydra/thrum/internal/logx"
 )
@@ -42,6 +43,9 @@ func Ensure(name string, log *logx.Logger) (*Sink, error) {
 		)
 		if err != nil {
 			return nil, err
+		}
+		if err := waitForMonitor(name, 2*time.Second); err != nil {
+			log.Warnf("output device created but its monitor is not visible yet: %v", err)
 		}
 	}
 
@@ -82,6 +86,26 @@ func (s *Sink) Dispose() {
 		}
 		s.log.Infof("removed virtual output %q", s.Name)
 		return
+	}
+}
+
+func waitForMonitor(name string, timeout time.Duration) error {
+	source := name + ".monitor"
+	deadline := time.Now().Add(timeout)
+	for {
+		out, err := pactl("list", "short", "sources")
+		if err == nil {
+			for _, line := range strings.Split(out, "\n") {
+				fields := strings.Split(line, "\t")
+				if len(fields) > 1 && fields[1] == source {
+					return nil
+				}
+			}
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("source %q did not appear", source)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 

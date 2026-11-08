@@ -58,18 +58,24 @@ type Capture struct {
 	cb   Callbacks
 	log  *logx.Logger
 
-	mu        sync.Mutex
-	cmd       *exec.Cmd
-	stopping  bool
-	running   bool
-	produced  bool
-	restarts  int
-	startedAt time.Time
-	lastErr   string
+	mu           sync.Mutex
+	cmd          *exec.Cmd
+	stopping     bool
+	running      bool
+	produced     bool
+	restarts     int
+	startedAt    time.Time
+	lastDataAt   time.Time
+	stallTimeout time.Duration
+	lastErr      string
 }
 
 func New(opts Options) *Capture {
-	return &Capture{opts: opts, log: opts.Logger}
+	return &Capture{
+		opts:         opts,
+		log:          opts.Logger,
+		stallTimeout: 5 * time.Second,
+	}
 }
 
 // Start validates the capture backend and launches the restart loop.
@@ -79,6 +85,7 @@ func (c *Capture) Start(ctx context.Context, cb Callbacks) error {
 	}
 	c.cb = cb
 	go c.loop(ctx)
+	go c.watchdog(ctx)
 	return nil
 }
 
@@ -226,6 +233,7 @@ func (c *Capture) runOnce() error {
 	c.cmd = cmd
 	c.running = true
 	c.startedAt = time.Now()
+	c.lastDataAt = time.Now()
 	c.mu.Unlock()
 
 	c.log.Infof("capturing %s -> %s via %s", c.opts.Source, c.target(), filepath.Base(path))
@@ -246,6 +254,7 @@ func (c *Capture) runOnce() error {
 
 			c.mu.Lock()
 			c.produced = true
+			c.lastDataAt = time.Now()
 			c.mu.Unlock()
 
 			if c.cb.OnData != nil {
@@ -275,6 +284,41 @@ func (c *Capture) target() string {
 		return fmt.Sprintf("PCM %d Hz / %d-bit stereo", SampleRate, BitsPerSample)
 	}
 	return fmt.Sprintf("MP3 %d kbps", c.opts.Bitrate)
+}
+
+// watchdog restarts the capture process if it is alive but has stopped
+// delivering data. A PipeWire/PulseAudio hiccup can leave the process running
+// while the monitor stream goes silent, which otherwise plays as dead air.
+func (c *Capture) watchdog(ctx context.Context) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			c.mu.Lock()
+			running := c.running
+			stopping := c.stopping
+			cmd := c.cmd
+			lastData := c.lastDataAt
+			c.mu.Unlock()
+
+			if !running || stopping || cmd == nil || cmd.Process == nil {
+				continue
+			}
+			if lastData.IsZero() || time.Since(lastData) <= c.stallTimeout {
+				continue
+			}
+
+			c.log.Warnf("no audio data for %s; restarting capture", c.stallTimeout)
+			c.mu.Lock()
+			c.lastDataAt = time.Now() // avoid repeated signals before exit
+			c.mu.Unlock()
+			_ = cmd.Process.Signal(syscall.SIGTERM)
+		}
+	}
 }
 
 func (c *Capture) Stop() {
