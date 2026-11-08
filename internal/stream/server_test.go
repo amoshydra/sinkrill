@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amoshydra/sonos-sink/internal/logx"
+	"github.com/amoshydra/thrum/internal/logx"
 )
 
 func testServer(t *testing.T) *Server {

@@ -1,3 +1,3 @@
-module github.com/amoshydra/sonos-sink
+module github.com/amoshydra/thrum
 
 go 1.22

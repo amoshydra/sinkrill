@@ -9,12 +9,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/amoshydra/sonos-sink/internal/capture"
-	"github.com/amoshydra/sonos-sink/internal/logx"
-	"github.com/amoshydra/sonos-sink/internal/netutil"
-	"github.com/amoshydra/sonos-sink/internal/sonos"
-	"github.com/amoshydra/sonos-sink/internal/stream"
-	"github.com/amoshydra/sonos-sink/internal/virtualsink"
+	"github.com/amoshydra/thrum/internal/capture"
+	"github.com/amoshydra/thrum/internal/logx"
+	"github.com/amoshydra/thrum/internal/netutil"
+	"github.com/amoshydra/thrum/internal/sonos"
+	"github.com/amoshydra/thrum/internal/stream"
+	"github.com/amoshydra/thrum/internal/virtualsink"
 )
 
 type Options struct {
@@ -267,9 +267,9 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 	}
 	log.Infof("preview locally: http://%s:%d/%s", lanIP, server.Port(), file)
 
-	metadata := sonos.RadioMetadata(opts.Station, "sonos-sink")
+	metadata := sonos.RadioMetadata(opts.Station, "thrum")
 	if opts.Format == "wav" {
-		metadata = sonos.WAVMetadata(opts.Station, streamURI, "sonos-sink")
+		metadata = sonos.WAVMetadata(opts.Station, streamURI, "thrum")
 	}
 	tune := func() error {
 		if speaker == nil {

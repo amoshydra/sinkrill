@@ -1,22 +1,25 @@
-# sonos-sink
+![Thrum](assets/banner.svg)
 
-[![CI](https://github.com/amoshydra/sonos-sink/actions/workflows/ci.yml/badge.svg)](https://github.com/amoshydra/sonos-sink/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/amoshydra/sonos-sink)](https://github.com/amoshydra/sonos-sink/releases)
-[![Go](https://img.shields.io/github/go-mod/go-version/amoshydra/sonos-sink)](go.mod)
-[![License](https://img.shields.io/github/license/amoshydra/sonos-sink)](LICENSE)
+[![CI](https://github.com/amoshydra/thrum/actions/workflows/ci.yml/badge.svg)](https://github.com/amoshydra/thrum/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/amoshydra/thrum)](https://github.com/amoshydra/thrum/releases)
+[![Go](https://img.shields.io/github/go-mod/go-version/amoshydra/thrum)](go.mod)
+[![License](https://img.shields.io/github/license/amoshydra/thrum)](LICENSE)
 
-Stream this computer's audio output to Sonos speakers over your LAN — an
-AirPlay-like "PC audio" sink for Linux, in a single static binary.
+**Thrum** streams your Linux PC's audio output to Sonos speakers over your LAN —
+an AirPlay-like "PC audio" sink in a single static binary.
 
-It defaults to uncompressed **WAV PCM** because Sonos gives a WAV file stream
+> **thrum** *(noun)*: a continuous low sound — the hum of a machine, or a room
+> full of music.
+
+It defaults to uncompressed **WAV PCM**, because Sonos gives a WAV file stream
 far less buffering than an internet-radio style MP3 stream: **~0.1 s** buffered
 instead of **~4.8 s** (measured; see [Latency](#latency)).
 
 ```bash
-sonos-sink                 # auto-detect the only Sonos speaker and start streaming
-sonos-sink "Living Room"   # pick a room by name
-sonos-sink --virtual-sink  # appear as a "Sonos" output device in your audio selector
-sonos-sink --no-tune       # only serve the stream; tune Sonos yourself
+thrum                      # auto-detect the only Sonos speaker and start streaming
+thrum "Living Room"        # pick a room by name
+thrum --virtual-sink       # appear as a "Thrum" output device in your audio selector
+thrum --no-tune            # only serve the stream; tune Sonos yourself
 ```
 
 Press `Ctrl+C` to stop playback and shut down.
@@ -24,7 +27,8 @@ Press `Ctrl+C` to stop playback and shut down.
 ## Why
 
 - **Looks like a speaker.** `--virtual-sink` creates a real PipeWire/PulseAudio
-  output device, so you pick **Sonos** in your audio settings or per-app.
+  output device called **Thrum**, so you pick it in your audio settings or
+  per-app.
 - **Low latency by default.** WAV over plain HTTP avoids Sonos's internet-radio
   pre-buffer: ~0.1 s buffered, measured, instead of ~4.8 s with MP3.
 - **No Node, no npm, no Icecast.** One static binary; it shells out to
@@ -46,7 +50,7 @@ Press `Ctrl+C` to stop playback and shut down.
 ```
 
 1. `parec` records the monitor of your current audio output
-   (`@DEFAULT_MONITOR@`), or of the virtual **Sonos** device created by
+   (`@DEFAULT_MONITOR@`), or of the virtual **Thrum** device created by
    `--virtual-sink`. If `parec` is missing, `ffmpeg -f pulse` is used instead.
 2. The bytes are served as a continuous 48 kHz/16-bit stereo WAV stream.
 3. Sonos is told to play `http://<lan-ip>:<port>/stream.wav`. Because that looks
@@ -81,20 +85,20 @@ sudo apt install pulseaudio-utils
 Download the latest release, verify the checksum, and put it on your `PATH`:
 
 ```bash
-curl -LO https://github.com/amoshydra/sonos-sink/releases/latest/download/sonos-sink-linux-amd64
-curl -LO https://github.com/amoshydra/sonos-sink/releases/latest/download/sonos-sink-linux-amd64.sha256
-sha256sum -c sonos-sink-linux-amd64.sha256
+curl -LO https://github.com/amoshydra/thrum/releases/latest/download/thrum-linux-amd64
+curl -LO https://github.com/amoshydra/thrum/releases/latest/download/thrum-linux-amd64.sha256
+sha256sum -c thrum-linux-amd64.sha256
 
-install -Dm755 sonos-sink-linux-amd64 ~/.local/bin/sonos-sink
-sonos-sink --help
+install -Dm755 thrum-linux-amd64 ~/.local/bin/thrum
+thrum --help
 ```
 
-Use `sonos-sink-linux-arm64` on ARM machines.
+Use `thrum-linux-arm64` on ARM machines.
 
 ### Go
 
 ```bash
-go install github.com/amoshydra/sonos-sink@latest
+go install github.com/amoshydra/thrum@latest
 ```
 
 Make sure `$(go env GOPATH)/bin` is on your `PATH`.
@@ -104,39 +108,39 @@ Make sure `$(go env GOPATH)/bin` is on your `PATH`.
 A `PKGBUILD` is in [`contrib/aur`](contrib/aur). Once the package is in the AUR:
 
 ```bash
-yay -S sonos-sink
+yay -S thrum
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/amoshydra/sonos-sink.git
-cd sonos-sink
-make            # builds ./sonos-sink
+git clone https://github.com/amoshydra/thrum.git
+cd thrum
+make            # builds ./thrum
 make install    # installs to /usr/local/bin (PREFIX=/... to override)
 ```
 
 ## Usage
 
 ```bash
-# Let sonos-sink find the speaker (works when there is exactly one)
-sonos-sink
+# Let Thrum find the speaker (works when there is exactly one)
+thrum
 
 # Choose a room by name, or a speaker by IP
-sonos-sink "Living Room"
-sonos-sink --device 192.168.1.42
+thrum "Living Room"
+thrum --device 192.168.1.42
 
 # List what's on the network
-sonos-sink devices
+thrum devices
 
 # Stop playback without starting a stream
-sonos-sink stop "Living Room"
+thrum stop "Living Room"
 
 # Serve only: prints the URL to paste into the Sonos app
-sonos-sink --no-tune
+thrum --no-tune
 
 # Capture a specific source instead of the default output
-sonos-sink --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
+thrum --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 ```
 
 ### Options
@@ -156,8 +160,8 @@ sonos-sink --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 | `--volume <0-100>` | unchanged | Set the speaker volume on start |
 | `--keepalive` | off | Re-tune if the speaker stops by itself |
 | `--no-tune` | off | Don't control Sonos; only serve the stream |
-| `--virtual-sink [name]` | off | Create an output device (default `sonos`) and capture it |
-| `--station <name>` | `PC Audio` | Name shown on the speaker |
+| `--virtual-sink [name]` | off | Create an output device (default `thrum`) and capture it |
+| `--station <name>` | `Thrum` | Name shown on the speaker |
 | `-v, --verbose` | off | Verbose logs |
 
 ### HTTP endpoints
@@ -167,7 +171,7 @@ sonos-sink --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 | `/stream.wav` | Live WAV PCM stream (default) |
 | `/stream.mp3` | Live MP3 stream (`--format mp3`) |
 | `/stream` | Alias for whichever format is active |
-| `/status` | JSON: device, source, format, listeners, capture state |
+| `/status` | JSON: device, source, format, listeners, queue, capture state |
 | `/health` | `{"ok":true}` |
 
 Point VLC, a browser, or anything else at `http://<lan-ip>:8567/stream.wav`
@@ -182,7 +186,8 @@ The defaults are tuned for the lowest latency this approach allows:
 - no warm-up replay (`--warmup 0`)
 - ~20 ms capture latency (`parec --latency-msec=20`)
 - no resampling or encoder delay in WAV mode
-- `TCP_NODELAY` on the audio socket and direct packet writes
+- a byte-bounded listener queue (~125 ms) that drops old audio instead of
+  drifting behind, plus `TCP_NODELAY` and a small send buffer
 
 Measured with the built-in probe: **~0.10 s** of buffered audio on the Sonos
 side for WAV, versus **~4.8 s** for MP3 radio streaming. Add the capture side
@@ -206,22 +211,22 @@ speaker may stop. `--keepalive` re-tunes automatically.
 
 ## Use it as a selectable output device
 
-By default `sonos-sink` mirrors your current output, so the PC and Sonos both
-play. Add `--virtual-sink` and it creates a real output device named **Sonos**
-in PipeWire/PulseAudio:
+By default Thrum mirrors your current output, so the PC and Sonos both play.
+Add `--virtual-sink` and it creates a real output device called **Thrum** in
+PipeWire/PulseAudio:
 
 ```bash
-sonos-sink --virtual-sink
+thrum --virtual-sink
 ```
 
-Now choose **Sonos** as the output in your desktop audio settings (or per-app in
+Now choose **Thrum** as the output in your desktop audio settings (or per-app in
 `pavucontrol` → Playback, or with `wpctl set-default <id>`). Only audio routed
 to that device goes to the speaker; everything else keeps playing locally. The
-device is removed again when `sonos-sink` exits.
+device is removed again when Thrum exits.
 
 ```bash
-sonos-sink --virtual-sink sonos          # explicit name
-sonos-sink --virtual-sink my-tv-sink     # any valid sink name
+thrum --virtual-sink thrum          # explicit name
+thrum --virtual-sink my-tv-sink     # any valid sink name
 ```
 
 If you'd rather own the device yourself (so it survives restarts), create it
@@ -229,35 +234,35 @@ once and capture its monitor:
 
 ```bash
 pactl load-module module-null-sink \
-  sink_name=sonos \
-  sink_properties=device.description=Sonos
+  sink_name=thrum \
+  sink_properties=device.description=Thrum
 
-sonos-sink --source sonos.monitor
+thrum --source thrum.monitor
 ```
 
 ## Control
 
-`sonos-sink` runs in the foreground. `Ctrl+C` stops the speaker, kills the
-capture process, removes the virtual device, and exits.
+Thrum runs in the foreground. `Ctrl+C` stops the speaker, kills the capture
+process, removes the virtual device, and exits.
 
 | What | How |
 |------|-----|
-| Start / stop | `sonos-sink` / `Ctrl+C` (or `sonos-sink stop "Living Room"`) |
+| Start / stop | `thrum` / `Ctrl+C` (or `thrum stop "Living Room"`) |
 | Volume | Sonos app, or `--volume 40` on start |
-| Pause / resume | Sonos app; long pauses may drop the stream connection, then restart `sonos-sink` (or run with `--keepalive`) |
-| Change room | stop, then `sonos-sink "Other Room"` |
+| Pause / resume | Sonos app; long pauses may drop the stream connection, then restart `thrum` (or run with `--keepalive`) |
+| Change room | stop, then `thrum "Other Room"` |
 | Inspect | `curl http://<lan-ip>:8567/status` |
 | Preview | open `http://<lan-ip>:8567/stream.wav` in VLC or a browser |
 
 ## Run as a user service
 
-Copy [`contrib/systemd/sonos-sink.service`](contrib/systemd/sonos-sink.service)
-to `~/.config/systemd/user/`, edit the room name, then:
+Copy [`contrib/systemd/thrum.service`](contrib/systemd/thrum.service) to
+`~/.config/systemd/user/`, edit the room name, then:
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now sonos-sink
-journalctl --user -u sonos-sink -f
+systemctl --user enable --now thrum
+journalctl --user -u thrum -f
 ```
 
 ## Troubleshooting
@@ -266,9 +271,9 @@ journalctl --user -u sonos-sink -f
 
 - Make sure the speakers are powered on and on the same network.
 - SSDP multicast is often blocked by VPNs, guest Wi-Fi/AP isolation, or some
-  switches. `sonos-sink` falls back to scanning the local `/24` on port `1400`,
-  but a VPN that captures LAN traffic can still hide the speakers. Try
-  `sonos-sink devices --timeout 8000`, or pass `--device <ip>` directly.
+  switches. Thrum falls back to scanning the local `/24` on port `1400`, but a
+  VPN that captures LAN traffic can still hide the speakers. Try
+  `thrum devices --timeout 8000`, or pass `--device <ip>` directly.
 - If the scan also fails, find the speaker's IP in your router, then use
   `--device <ip>`.
 
@@ -278,7 +283,7 @@ journalctl --user -u sonos-sink -f
   firewall (e.g. `ufw allow 8567/tcp`) and that `--host` is the LAN interface's
   address, not a VPN or Docker address.
 - Make sure the port isn't already in use; use `--port 0` to pick a free one.
-- Try `sonos-sink --no-tune` and open
+- Try `thrum --no-tune` and open
   `http://<lan-ip>:<port>/stream.wav` from another device to verify reachability.
 
 **No sound, but the stream is running**
@@ -289,11 +294,18 @@ journalctl --user -u sonos-sink -f
 - DRM-protected playback (Netflix, some streaming apps) may produce silence in
   the capture. That's a platform restriction, not a bug.
 
+**It feels laggy**
+
+- Check `curl -s http://127.0.0.1:8567/status | grep -E 'queuedBytes|droppedChunks'`.
+  `queuedBytes` should stay near 0; a large queue means a listener is behind.
+- Make sure you are in WAV mode (`format: "wav"`), not MP3.
+- Sonos's own buffer is ~0.1 s; a wired line-in or HDMI is the only way lower.
+
 **The speaker stops after a while**
 
 - Live streams stop themselves when the connection hiccups. Restart with
-  `--keepalive` to let `sonos-sink` re-tune automatically. Note that this can
-  also undo a manual stop from the Sonos app.
+  `--keepalive` to let Thrum re-tune automatically. Note that this can also
+  undo a manual stop from the Sonos app.
 
 **Capture restarts in the logs**
 
@@ -305,7 +317,7 @@ journalctl --user -u sonos-sink -f
 ```bash
 make test        # go test ./...
 make vet         # go vet ./...
-make build       # ./sonos-sink
+make build       # ./thrum
 make fmt
 ```
 
@@ -313,12 +325,21 @@ Measure how much audio Sonos buffers (stop the running service first; the probe
 retunes the speaker):
 
 ```bash
-./sonos-sink probe wav 30
-./sonos-sink probe mp3 30
+./thrum probe wav 30
+./thrum probe mp3 30
 ```
 
-The project started as a Node/TypeScript CLI and was rewritten in Go for a
-single static binary. The old implementation is in git history.
+The project started as a Node/TypeScript CLI, was rewritten in Go for a single
+static binary, and is now called Thrum. The old implementations are in git
+history.
+
+See [`BRANDING.md`](BRANDING.md) for the name, logo, palette, and voice.
+
+## Trademark
+
+Thrum is an independent project and is **not affiliated with, endorsed by, or
+sponsored by Sonos, Inc.** "Sonos" is a trademark of Sonos, Inc. and is used
+only to describe compatibility.
 
 ## License
 

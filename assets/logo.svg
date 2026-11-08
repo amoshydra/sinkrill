@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Thrum">
+  <defs>
+    <linearGradient id="hum" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0F172A"/>
+  <circle cx="176" cy="256" r="36" fill="url(#hum)"/>
+  <path d="M 218 183 A 84 84 0 0 1 218 329" fill="none" stroke="url(#hum)" stroke-width="26" stroke-linecap="round"/>
+  <path d="M 249 130 A 146 146 0 0 1 249 382" fill="none" stroke="url(#hum)" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 280 76 A 208 208 0 0 1 280 436" fill="none" stroke="url(#hum)" stroke-width="26" stroke-linecap="round" opacity="0.4"/>
+</svg>

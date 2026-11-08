@@ -14,10 +14,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/amoshydra/sonos-sink/internal/logx"
-	"github.com/amoshydra/sonos-sink/internal/probe"
-	"github.com/amoshydra/sonos-sink/internal/sink"
-	"github.com/amoshydra/sonos-sink/internal/sonos"
+	"github.com/amoshydra/thrum/internal/logx"
+	"github.com/amoshydra/thrum/internal/probe"
+	"github.com/amoshydra/thrum/internal/sink"
+	"github.com/amoshydra/thrum/internal/sonos"
 )
 
 // version is set by the release build (-ldflags "-X main.version=...").
@@ -37,7 +37,7 @@ func run(argv []string) int {
 		return 0
 	case "version":
 		resolveVersion()
-		fmt.Printf("sonos-sink %s\n", version)
+		fmt.Printf("thrum %s\n", version)
 		return 0
 	case "devices":
 		return runDevices(args)
@@ -65,7 +65,7 @@ func splitCommand(argv []string) (string, []string) {
 	if strings.HasPrefix(argv[0], "-") {
 		return "start", argv
 	}
-	// Shorthand: `sonos-sink "Living Room"`.
+	// Shorthand: `thrum "Living Room"`.
 	return "start", append([]string{"--device", argv[0]}, argv[1:]...)
 }
 
@@ -83,15 +83,15 @@ func resolveVersion() {
 }
 
 func printHelp() {
-	fmt.Print(`sonos-sink — stream this computer's audio to Sonos speakers
+	fmt.Print(`thrum — stream this computer's audio to Sonos speakers
 
 Usage:
-  sonos-sink [options]           Start streaming (same as "start")
-  sonos-sink "Living Room"       Pick a speaker by room name
-  sonos-sink devices [options]   List Sonos devices on the LAN
-  sonos-sink stop [options]      Stop playback on a device
-  sonos-sink probe [options]     Measure buffered latency
-  sonos-sink version             Print the version
+  thrum [options]           Start streaming (same as "start")
+  thrum "Living Room"       Pick a speaker by room name
+  thrum devices [options]   List Sonos devices on the LAN
+  thrum stop [options]      Stop playback on a device
+  thrum probe [options]     Measure buffered latency
+  thrum version             Print the version
 
 Options for start:
   -d, --device <name|ip>    Sonos room name or IP (auto-detected if only one)
@@ -107,11 +107,11 @@ Options for start:
       --volume <0-100>      Set the speaker volume on start
       --keepalive           Re-tune Sonos if it stops by itself
       --no-tune             Only serve the stream; do not control Sonos
-      --virtual-sink [name] Create an output device (default "sonos")
-      --station <name>      Name shown on the speaker (default "PC Audio")
+      --virtual-sink [name] Create an output device (default "thrum")
+      --station <name>      Name shown on the speaker (default "Thrum")
   -v, --verbose             Verbose logs
 
-Run "sonos-sink <command> -h" for command-specific options.
+Run "thrum <command> -h" for command-specific options.
 `)
 }
 
@@ -128,7 +128,7 @@ func runStart(args []string) int {
 		Parec:    "parec",
 		Volume:   -1,
 		Tune:     true,
-		Station:  "PC Audio",
+		Station:  "Thrum",
 		WarmupMS: 0,
 	}
 	var virtualSink optionalString
@@ -252,7 +252,7 @@ func runProbe(args []string) int {
 		FFmpeg:  "ffmpeg",
 		Parec:   "parec",
 		Seconds: 30,
-		Station: "PC Audio Probe",
+		Station: "Thrum Probe",
 	}
 
 	fs := flag.NewFlagSet("probe", flag.ContinueOnError)
@@ -365,7 +365,7 @@ func (o *optionalString) Set(value string) error {
 	switch value {
 	case "", "true":
 		o.set = true
-		o.name = "sonos"
+		o.name = "thrum"
 	case "false":
 		o.set = false
 		o.name = ""

@@ -28,12 +28,12 @@ jobs:
           VERSION: ${{ github.ref_name }}
         run: |
           go build -trimpath -ldflags "-s -w -X main.version=${VERSION#v}" \
-            -o sonos-sink-linux-${{ matrix.arch }} .
-          sha256sum sonos-sink-linux-${{ matrix.arch }} \
-            > sonos-sink-linux-${{ matrix.arch }}.sha256
+            -o thrum-linux-${{ matrix.arch }} .
+          sha256sum thrum-linux-${{ matrix.arch }} \
+            > thrum-linux-${{ matrix.arch }}.sha256
 
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            sonos-sink-linux-${{ matrix.arch }}
-            sonos-sink-linux-${{ matrix.arch }}.sha256
+            thrum-linux-${{ matrix.arch }}
+            thrum-linux-${{ matrix.arch }}.sha256

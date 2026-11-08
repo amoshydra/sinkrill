@@ -15,7 +15,7 @@ func TestStreamURI(t *testing.T) {
 }
 
 func TestWAVMetadata(t *testing.T) {
-	meta := WAVMetadata(`Den & "Kitchen" <1>`, "http://x/stream.wav?a=1&b=2", "sonos-sink")
+	meta := WAVMetadata(`Den & "Kitchen" <1>`, "http://x/stream.wav?a=1&b=2", "thrum")
 	if !strings.Contains(meta, "object.item.audioItem.musicTrack") {
 		t.Error("missing musicTrack class")
 	}
@@ -34,11 +34,11 @@ func TestWAVMetadata(t *testing.T) {
 }
 
 func TestRadioMetadata(t *testing.T) {
-	meta := RadioMetadata("PC Audio", "sonos-sink")
+	meta := RadioMetadata("Thrum", "thrum")
 	if !strings.Contains(meta, "object.item.audioItem.audioBroadcast") {
 		t.Error("missing audioBroadcast class")
 	}
-	if !strings.Contains(meta, "<dc:title>PC Audio</dc:title>") {
+	if !strings.Contains(meta, "<dc:title>Thrum</dc:title>") {
 		t.Error("missing title")
 	}
 }

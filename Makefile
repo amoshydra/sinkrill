@@ -5,10 +5,10 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 .PHONY: build test vet fmt install clean
 
 build:
-	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o sonos-sink .
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o thrum .
 
 install: build
-	install -Dm755 sonos-sink $(DESTDIR)$(PREFIX)/bin/sonos-sink
+	install -Dm755 thrum $(DESTDIR)$(PREFIX)/bin/thrum
 
 test:
 	go test ./...
@@ -20,4 +20,4 @@ fmt:
 	gofmt -w .
 
 clean:
-	rm -f sonos-sink
+	rm -f thrum

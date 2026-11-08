@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-label="Thrum — send your PC's sound to the speakers in the room">
+  <defs>
+    <linearGradient id="hum" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.18" cy="0.5" r="0.7">
+      <stop offset="0" stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="320" rx="24" fill="url(#glow)"/>
+
+  <g transform="translate(64, 80) scale(0.3125)">
+    <rect width="512" height="512" rx="112" fill="#0F172A"/>
+    <circle cx="176" cy="256" r="36" fill="url(#hum)"/>
+    <path d="M 218 183 A 84 84 0 0 1 218 329" fill="none" stroke="url(#hum)" stroke-width="26" stroke-linecap="round"/>
+    <path d="M 249 130 A 146 146 0 0 1 249 382" fill="none" stroke="url(#hum)" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 280 76 A 208 208 0 0 1 280 436" fill="none" stroke="url(#hum)" stroke-width="26" stroke-linecap="round" opacity="0.4"/>
+  </g>
+
+  <text x="272" y="196" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="124" font-weight="700" letter-spacing="-5" fill="#F8FAFC">thrum</text>
+  <text x="274" y="246" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="25" fill="#94A3B8">Send your PC's sound to the speakers in the room.</text>
+
+  <path d="M 760 258 q 18 -34 36 0 t 36 0 t 36 0 t 36 0 t 36 0" fill="none" stroke="#22D3EE" stroke-width="4" stroke-linecap="round" opacity="0.45"/>
+  <circle cx="1136" cy="80" r="6" fill="#F59E0B" opacity="0.8"/>
+</svg>

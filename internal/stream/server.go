@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amoshydra/sonos-sink/internal/logx"
+	"github.com/amoshydra/thrum/internal/logx"
 )
 
 type ServerOptions struct {
@@ -186,7 +186,7 @@ func sanitizeHeader(value string) string {
 	value = strings.ReplaceAll(value, "\r", " ")
 	value = strings.ReplaceAll(value, "\n", " ")
 	if value == "" {
-		return "PC Audio"
+		return "Thrum"
 	}
 	return value
 }

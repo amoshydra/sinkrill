@@ -29,4 +29,4 @@ jobs:
         run: go test ./...
 
       - name: Build
-        run: CGO_ENABLED=0 go build -trimpath -o /tmp/sonos-sink .
+        run: CGO_ENABLED=0 go build -trimpath -o /tmp/thrum .
