@@ -1,0 +1,62 @@
+{
+  "name": "sonos-sink",
+  "version": "0.1.0",
+  "description": "Stream this computer's audio to Sonos speakers over the network, with a low-latency WAV mode and a virtual output device.",
+  "type": "module",
+  "bin": {
+    "sonos-sink": "./bin/sonos-sink.js"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "linux"
+  ],
+  "packageManager": "pnpm@12.16.1",
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": [
+    "sonos",
+    "pipewire",
+    "pulseaudio",
+    "audio",
+    "stream",
+    "wav",
+    "pcm",
+    "low-latency",
+    "airplay",
+    "virtual-sink",
+    "linux",
+    "cli"
+  ],
+  "author": "amoshydra (https://github.com/amoshydra)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amoshydra/sonos-sink.git"
+  },
+  "homepage": "https://github.com/amoshydra/sonos-sink#readme",
+  "bugs": {
+    "url": "https://github.com/amoshydra/sonos-sink/issues"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "sonos": "^1.14.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "tsx": "^4.23.0",
+    "typescript": "^5.5.4"
+  }
+}
