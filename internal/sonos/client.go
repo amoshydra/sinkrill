@@ -181,6 +181,25 @@ func (c *Client) Volume(ctx context.Context) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(parsed.Volume))
 }
 
+type muteResponse struct {
+	Mute string `xml:"Body>GetMuteResponse>CurrentMute"`
+}
+
+func (c *Client) Muted(ctx context.Context) (bool, error) {
+	data, err := c.call(ctx, renderingService, "GetMute", [][2]string{
+		{"InstanceID", "0"},
+		{"Channel", "Master"},
+	})
+	if err != nil {
+		return false, err
+	}
+	var parsed muteResponse
+	if err := xml.Unmarshal(data, &parsed); err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(parsed.Mute) == "1", nil
+}
+
 func snippet(data []byte) string {
 	text := strings.Join(strings.Fields(string(data)), " ")
 	if len(text) > 300 {

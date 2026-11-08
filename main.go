@@ -14,6 +14,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/amoshydra/thrum/internal/doctor"
 	"github.com/amoshydra/thrum/internal/logx"
 	"github.com/amoshydra/thrum/internal/probe"
 	"github.com/amoshydra/thrum/internal/sink"
@@ -45,6 +46,8 @@ func run(argv []string) int {
 		return runStop(args)
 	case "probe":
 		return runProbe(args)
+	case "doctor":
+		return runDoctor(args)
 	default:
 		return runStart(args)
 	}
@@ -55,7 +58,7 @@ func splitCommand(argv []string) (string, []string) {
 		return "start", nil
 	}
 	switch argv[0] {
-	case "start", "devices", "stop", "probe", "version", "help":
+	case "start", "devices", "stop", "probe", "doctor", "version", "help":
 		return argv[0], argv[1:]
 	case "-h", "--help":
 		return "help", nil
@@ -91,6 +94,7 @@ Usage:
   thrum devices [options]   List Sonos devices on the LAN
   thrum stop [options]      Stop playback on a device
   thrum probe [options]     Measure buffered latency
+  thrum doctor [options]    Diagnose silence, capture, and routing
   thrum version             Print the version
 
 Options for start:
@@ -240,6 +244,29 @@ func runStop(args []string) int {
 	}
 	log.Infof("stopped %s (%s)", resolved.Name, resolved.IP)
 	return 0
+}
+
+func runDoctor(args []string) int {
+	opts := doctor.Options{
+		Port:        8567,
+		VirtualSink: "thrum",
+	}
+
+	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
+	intVar(fs, &opts.Port, "port", "p", opts.Port, "Thrum server port")
+	strVar(fs, &opts.Device, "device", "d", "", "Sonos room name or IP")
+	strVar(fs, &opts.VirtualSink, "virtual-sink", "", opts.VirtualSink, "expected output device name")
+	verbose := boolVar(fs, nil, "verbose", "v", false, "verbose logging")
+
+	if code, ok := parseFlags(fs, args); !ok {
+		return code
+	}
+
+	log := logx.New(*verbose)
+	ctx, stop := signalContext()
+	defer stop()
+
+	return doctor.Run(ctx, opts, log)
 }
 
 func runProbe(args []string) int {

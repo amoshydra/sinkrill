@@ -139,6 +139,9 @@ thrum stop "Living Room"
 # Serve only: prints the URL to paste into the Sonos app
 thrum --no-tune
 
+# Diagnose silence, capture, and routing
+thrum doctor
+
 # Capture a specific source instead of the default output
 thrum --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 ```
@@ -173,7 +176,6 @@ thrum --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 | `/stream` | Alias for whichever format is active |
 | `/status` | JSON: device, source, format, listeners, queue, capture state |
 | `/health` | `{"ok":true}` |
-
 Point VLC, a browser, or anything else at `http://<lan-ip>:8567/stream.wav`
 (or `/stream.mp3` with MP3 mode) to preview locally.
 
@@ -265,6 +267,49 @@ systemctl --user enable --now thrum
 journalctl --user -u thrum -f
 ```
 
+## If you hear nothing
+
+Run:
+
+```bash
+thrum doctor
+```
+
+It checks the server, the capture, the output device, and the speaker, and
+prints the next command to run.
+
+If the capture is **stalled** (it can happen after a PipeWire/PulseAudio
+hiccup), restart Thrum. The 5-second watchdog normally recovers this
+automatically, but a restart always recreates the sink and capture:
+
+```bash
+systemctl --user restart thrum
+# or, if running in a terminal: Ctrl+C, then start it again
+```
+
+Then check the three volume/routing stages:
+
+```bash
+pactl info | grep 'Default Sink'      # should be: thrum
+pactl get-sink-mute thrum             # should be: no
+pactl set-sink-volume thrum 100%      # keep Thrum at 100%, control level on Sonos
+```
+
+And check the speaker: the Sonos app should show **playing**, not muted, with a
+reasonable volume.
+
+Test the whole path with a generated tone (this works on Arch too; the
+`/usr/share/sounds/alsa/...` path is Debian/Ubuntu-only):
+
+```bash
+ffmpeg -f lavfi -i "sine=frequency=440:duration=2" -ar 48000 -ac 2 /tmp/thrum-tone.wav
+paplay --device=thrum /tmp/thrum-tone.wav
+```
+
+If `paplay` says `open(): No such file or directory`, the *file* is missing —
+that is not a Thrum or device error. If the tone is silent on the speaker, run
+`thrum doctor` again.
+
 ## Troubleshooting
 
 **No Sonos devices found**
@@ -306,6 +351,11 @@ journalctl --user -u thrum -f
 - Live streams stop themselves when the connection hiccups. Restart with
   `--keepalive` to let Thrum re-tune automatically. Note that this can also
   undo a manual stop from the Sonos app.
+
+**The log says `no audio data ... restarting capture`**
+
+- That is the watchdog recovering a stalled `parec`. It should recover in a few
+  seconds. If it repeats, check `pactl list short sources` and run `thrum doctor`.
 
 **Capture restarts in the logs**
 

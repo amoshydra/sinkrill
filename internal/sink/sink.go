@@ -62,10 +62,12 @@ type VirtualSinkStatus struct {
 }
 
 type CaptureStatus struct {
-	Running   bool   `json:"running"`
-	Restarts  int    `json:"restarts"`
-	UptimeMS  int64  `json:"uptimeMs"`
-	LastError string `json:"lastError,omitempty"`
+	Running    bool   `json:"running"`
+	Restarts   int    `json:"restarts"`
+	UptimeMS   int64  `json:"uptimeMs"`
+	LastDataMS int64  `json:"lastDataMs"`
+	Stalled    bool   `json:"stalled"`
+	LastError  string `json:"lastError,omitempty"`
 }
 
 const firstDataTimeout = 8 * time.Second
@@ -147,6 +149,17 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 
 	statusFn := func() any {
 		snap := capt.Snapshot()
+		var lastDataMS int64
+		stalled := false
+		if snap.Running && !snap.LastDataAt.IsZero() {
+			age := time.Since(snap.LastDataAt)
+			lastDataMS = age.Milliseconds()
+			timeout := snap.StallTimeout
+			if timeout == 0 {
+				timeout = 5 * time.Second
+			}
+			stalled = age > timeout
+		}
 		status := Status{
 			Station:       opts.Station,
 			Source:        source,
@@ -159,10 +172,12 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 			QueuedBytes:   hub.MaxQueuedBytes(),
 			DroppedChunks: hub.TotalDrops(),
 			Capture: CaptureStatus{
-				Running:   snap.Running,
-				Restarts:  snap.Restarts,
-				UptimeMS:  snap.Uptime.Milliseconds(),
-				LastError: snap.LastError,
+				Running:    snap.Running,
+				Restarts:   snap.Restarts,
+				UptimeMS:   snap.Uptime.Milliseconds(),
+				LastDataMS: lastDataMS,
+				Stalled:    stalled,
+				LastError:  snap.LastError,
 			},
 		}
 		if device != nil {

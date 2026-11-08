@@ -47,10 +47,12 @@ type Callbacks struct {
 }
 
 type Snapshot struct {
-	Running   bool
-	Restarts  int
-	Uptime    time.Duration
-	LastError string
+	Running      bool
+	Restarts     int
+	Uptime       time.Duration
+	LastError    string
+	LastDataAt   time.Time
+	StallTimeout time.Duration
 }
 
 type Capture struct {
@@ -354,10 +356,12 @@ func (c *Capture) Snapshot() Snapshot {
 		uptime = time.Since(c.startedAt)
 	}
 	return Snapshot{
-		Running:   c.running,
-		Restarts:  c.restarts,
-		Uptime:    uptime,
-		LastError: c.lastErr,
+		Running:      c.running,
+		Restarts:     c.restarts,
+		Uptime:       uptime,
+		LastError:    c.lastErr,
+		LastDataAt:   c.lastDataAt,
+		StallTimeout: c.stallTimeout,
 	}
 }
 
