@@ -41,8 +41,8 @@ Releases are automated with [Release Please](https://github.com/googleapis/relea
   `chore(main): release x.y.z`.
 - Merging that PR creates the `vX.Y.Z` tag, the GitHub Release, and the
   `thrum-linux-amd64/arm64` binaries with checksums.
-- The first release is bootstrapped from `0.0.0` in
-  `.release-please-manifest.json`, so it becomes `0.1.0`.
+- The first release is bootstrapped with `"initial-version": "0.1.0"` in
+  `release-please-config.json`.
 - While the version is below 1.0.0, the pre-release policy is:
   - `feat:` and `fix:` bump the **patch** (`0.1.0` → `0.1.1`)
   - `feat!:` / `BREAKING CHANGE` bumps the **minor** (`0.1.0` → `0.2.0`)
