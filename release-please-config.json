@@ -4,7 +4,7 @@
   "packages": {
     ".": {
       "release-type": "go",
-      "package-name": "thrum",
+      "package-name": "sinkrill",
       "include-component-in-tag": false,
       "initial-version": "0.1.0",
       "bump-patch-for-minor-pre-major": true,

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 280" role="img" aria-label="Thrum">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 561 280" role="img" aria-label="Sinkrill">
   <defs>
     <linearGradient id="hum" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#F59E0B"/>
@@ -12,5 +12,5 @@
     <path d="M 249 130 A 146 146 0 0 1 249 382" fill="none" stroke="url(#hum)" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
     <path d="M 280 76 A 208 208 0 0 1 280 436" fill="none" stroke="url(#hum)" stroke-width="26" stroke-linecap="round" opacity="0.4"/>
   </g>
-  <text x="250" y="176" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="112" font-weight="700" letter-spacing="-5" fill="#0F172A">thrum</text>
+  <text x="250" y="176" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="100" font-weight="700" letter-spacing="-5" fill="#0F172A">sinkrill</text>
 </svg>

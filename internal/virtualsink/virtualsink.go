@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amoshydra/thrum/internal/logx"
+	"github.com/amoshydra/sinkrill/internal/logx"
 )
 
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
@@ -39,7 +39,7 @@ func Ensure(name string, log *logx.Logger) (*Sink, error) {
 		_, err = pactl(
 			"load-module", "module-null-sink",
 			"sink_name="+name,
-			"sink_properties=device.description=Thrum",
+			"sink_properties=device.description=Sinkrill",
 		)
 		if err != nil {
 			return nil, err

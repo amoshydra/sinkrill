@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amoshydra/thrum/internal/logx"
-	"github.com/amoshydra/thrum/internal/sonos"
+	"github.com/amoshydra/sinkrill/internal/logx"
+	"github.com/amoshydra/sinkrill/internal/sonos"
 )
 
 type Options struct {
@@ -60,10 +60,10 @@ var volumeRe = regexp.MustCompile(`(\d+)%`)
 // Run prints a diagnostic checklist and returns a process exit code.
 func Run(ctx context.Context, opts Options, log *logx.Logger) int {
 	if opts.VirtualSink == "" {
-		opts.VirtualSink = "thrum"
+		opts.VirtualSink = "sinkrill"
 	}
 
-	fmt.Println("Thrum doctor")
+	fmt.Println("Sinkrill doctor")
 	fmt.Println()
 
 	fails, warns := 0, 0
@@ -89,8 +89,8 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) int {
 
 	if err != nil {
 		fail("server on port %d is not responding", opts.Port)
-		hint("start it: systemctl --user start thrum")
-		hint("or:       thrum --device \"Living Room\" --virtual-sink")
+		hint("start it: systemctl --user start sinkrill")
+		hint("or:       sinkrill --device \"Living Room\" --virtual-sink")
 	} else {
 		ok("server: %s, %s, %d listener(s)", status.Station, status.Format, status.Listeners)
 		if status.VirtualSink != nil && status.VirtualSink.Name != "" {
@@ -103,16 +103,16 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) int {
 
 		if status.Format != "wav" {
 			warn("format is %q; WAV has much lower latency", status.Format)
-			hint("run thrum with: --format wav")
+			hint("run sinkrill with: --format wav")
 		}
 
 		switch {
 		case !status.Capture.Running:
 			fail("capture is not running")
-			hint("restart: systemctl --user restart thrum")
+			hint("restart: systemctl --user restart sinkrill")
 		case status.Capture.Stalled:
 			fail("capture is stalled (no bytes for %.1f s)", float64(status.Capture.LastDataMS)/1000)
-			hint("restart: systemctl --user restart thrum")
+			hint("restart: systemctl --user restart sinkrill")
 			hint("the 5 s watchdog should recover this automatically")
 		default:
 			ok("capture: %s, last data %d ms ago", status.Source, status.Capture.LastDataMS)
@@ -126,7 +126,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) int {
 
 		if status.Listeners == 0 {
 			warn("stream: no speaker is connected")
-			hint("retune: thrum stop \"%s\" && thrum \"%s\" --virtual-sink", sonosName, sonosName)
+			hint("retune: sinkrill stop \"%s\" && sinkrill \"%s\" --virtual-sink", sonosName, sonosName)
 		} else {
 			ok("stream: %d listener(s), queue %d bytes", status.Listeners, status.QueuedBytes)
 		}
@@ -154,7 +154,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) int {
 	if _, err := exec.LookPath("pactl"); err == nil {
 		if !sinkExists(sinkName) {
 			fail("output: %q sink not found", sinkName)
-			hint("start thrum with --virtual-sink (or create the sink manually)")
+			hint("start sinkrill with --virtual-sink (or create the sink manually)")
 		} else {
 			current := defaultSink()
 			if current == sinkName {
@@ -187,7 +187,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) int {
 	}
 
 	if sonosIP == "" {
-		warn("sonos: no device in status (was Thrum started with --no-tune?)")
+		warn("sonos: no device in status (was Sinkrill started with --no-tune?)")
 	} else {
 		client := sonos.NewClient(sonosIP)
 		state, err := client.TransportState(ctx)
@@ -202,7 +202,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) int {
 			}
 			if strings.EqualFold(state, "STOPPED") {
 				warn("sonos: %s is stopped", sonosName)
-				hint("retune: thrum \"%s\" --virtual-sink", sonosName)
+				hint("retune: sinkrill \"%s\" --virtual-sink", sonosName)
 			} else {
 				ok("sonos: %s is %s, volume %d", sonosName, strings.ToLower(state), volume)
 			}
@@ -219,7 +219,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) int {
 		return 0
 	}
 	fmt.Println("Everything looks good.")
-	fmt.Printf("Test the output: ffmpeg -f lavfi -i \"sine=frequency=440:duration=2\" -ar 48000 -ac 2 /tmp/thrum-tone.wav && paplay --device=%s /tmp/thrum-tone.wav\n", sinkName)
+	fmt.Printf("Test the output: ffmpeg -f lavfi -i \"sine=frequency=440:duration=2\" -ar 48000 -ac 2 /tmp/sinkrill-tone.wav && paplay --device=%s /tmp/sinkrill-tone.wav\n", sinkName)
 	return 0
 }
 

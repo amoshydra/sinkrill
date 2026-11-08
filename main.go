@@ -14,11 +14,11 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/amoshydra/thrum/internal/doctor"
-	"github.com/amoshydra/thrum/internal/logx"
-	"github.com/amoshydra/thrum/internal/probe"
-	"github.com/amoshydra/thrum/internal/sink"
-	"github.com/amoshydra/thrum/internal/sonos"
+	"github.com/amoshydra/sinkrill/internal/doctor"
+	"github.com/amoshydra/sinkrill/internal/logx"
+	"github.com/amoshydra/sinkrill/internal/probe"
+	"github.com/amoshydra/sinkrill/internal/sink"
+	"github.com/amoshydra/sinkrill/internal/sonos"
 )
 
 // version is set by the release build (-ldflags "-X main.version=...").
@@ -38,7 +38,7 @@ func run(argv []string) int {
 		return 0
 	case "version":
 		resolveVersion()
-		fmt.Printf("thrum %s\n", version)
+		fmt.Printf("sinkrill %s\n", version)
 		return 0
 	case "devices":
 		return runDevices(args)
@@ -68,7 +68,7 @@ func splitCommand(argv []string) (string, []string) {
 	if strings.HasPrefix(argv[0], "-") {
 		return "start", argv
 	}
-	// Shorthand: `thrum "Living Room"`.
+	// Shorthand: `sinkrill "Living Room"`.
 	return "start", append([]string{"--device", argv[0]}, argv[1:]...)
 }
 
@@ -86,17 +86,17 @@ func resolveVersion() {
 }
 
 func printHelp() {
-	fmt.Print(`thrum — stream this computer's audio to Sonos speakers
+	fmt.Print(`sinkrill — stream this computer's audio to Sonos speakers
 
 Usage:
-  thrum --virtual-sink             Add a "Thrum" output device (recommended)
-  thrum --virtual-sink "Living Room"
-  thrum                            Mirror the current output (no new device)
-  thrum devices [options]          List Sonos devices on the LAN
-  thrum stop [options]             Stop playback on a device
-  thrum doctor [options]           Diagnose silence, capture, and routing
-  thrum probe [options]            Measure buffered latency
-  thrum version                    Print the version
+  sinkrill --virtual-sink             Add a "Sinkrill" output device (recommended)
+  sinkrill --virtual-sink "Living Room"
+  sinkrill                            Mirror the current output (no new device)
+  sinkrill devices [options]          List Sonos devices on the LAN
+  sinkrill stop [options]             Stop playback on a device
+  sinkrill doctor [options]           Diagnose silence, capture, and routing
+  sinkrill probe [options]            Measure buffered latency
+  sinkrill version                    Print the version
 
 Options for start:
   -d, --device <name|ip>    Sonos room name or IP (auto-detected if only one)
@@ -112,11 +112,11 @@ Options for start:
       --volume <0-100>      Set the speaker volume on start
       --keepalive           Re-tune Sonos if it stops by itself
       --no-tune             Only serve the stream; do not control Sonos
-      --virtual-sink [name] Create the Thrum output device (recommended)
-      --station <name>      Name shown on the speaker (default "Thrum")
+      --virtual-sink [name] Create the Sinkrill output device (recommended)
+      --station <name>      Name shown on the speaker (default "Sinkrill")
   -v, --verbose             Verbose logs
 
-Run "thrum <command> -h" for command-specific options.
+Run "sinkrill <command> -h" for command-specific options.
 `)
 }
 
@@ -133,7 +133,7 @@ func runStart(args []string) int {
 		Parec:    "parec",
 		Volume:   -1,
 		Tune:     true,
-		Station:  "Thrum",
+		Station:  "Sinkrill",
 		WarmupMS: 0,
 	}
 	var virtualSink optionalString
@@ -153,7 +153,7 @@ func runStart(args []string) int {
 	intVar(fs, &opts.Volume, "volume", "", -1, "set speaker volume (0-100)")
 	boolVar(fs, &opts.Keepalive, "keepalive", "", false, "re-tune if the speaker stops")
 	boolVar(fs, &noTune, "no-tune", "", false, "only serve the stream")
-	fs.Var(&virtualSink, "virtual-sink", "create/use the Thrum output device (recommended)")
+	fs.Var(&virtualSink, "virtual-sink", "create/use the Sinkrill output device (recommended)")
 	strVar(fs, &opts.Station, "station", "", opts.Station, "station name shown on the speaker")
 	verbose := boolVar(fs, nil, "verbose", "v", false, "verbose logging")
 
@@ -250,11 +250,11 @@ func runStop(args []string) int {
 func runDoctor(args []string) int {
 	opts := doctor.Options{
 		Port:        8567,
-		VirtualSink: "thrum",
+		VirtualSink: "sinkrill",
 	}
 
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
-	intVar(fs, &opts.Port, "port", "p", opts.Port, "Thrum server port")
+	intVar(fs, &opts.Port, "port", "p", opts.Port, "Sinkrill server port")
 	strVar(fs, &opts.Device, "device", "d", "", "Sonos room name or IP")
 	strVar(fs, &opts.VirtualSink, "virtual-sink", "", opts.VirtualSink, "expected output device name")
 	verbose := boolVar(fs, nil, "verbose", "v", false, "verbose logging")
@@ -280,7 +280,7 @@ func runProbe(args []string) int {
 		FFmpeg:  "ffmpeg",
 		Parec:   "parec",
 		Seconds: 30,
-		Station: "Thrum Probe",
+		Station: "Sinkrill Probe",
 	}
 
 	fs := flag.NewFlagSet("probe", flag.ContinueOnError)
@@ -357,7 +357,7 @@ func boolVar(fs *flag.FlagSet, target *bool, long, short string, value bool, usa
 	return target
 }
 
-// optionalString supports `--virtual-sink` (uses "thrum") and
+// optionalString supports `--virtual-sink` (uses "sinkrill") and
 // `--virtual-sink=name`.
 type optionalString struct {
 	set  bool
@@ -393,7 +393,7 @@ func (o *optionalString) Set(value string) error {
 	switch value {
 	case "", "true":
 		o.set = true
-		o.name = "thrum"
+		o.name = "sinkrill"
 	case "false":
 		o.set = false
 		o.name = ""

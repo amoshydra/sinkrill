@@ -55,15 +55,15 @@ jobs:
           for arch in amd64 arm64; do
             GOOS=linux GOARCH="$arch" CGO_ENABLED=0 \
               go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-              -o "thrum-linux-$arch" .
-            sha256sum "thrum-linux-$arch" > "thrum-linux-$arch.sha256"
+              -o "sinkrill-linux-$arch" .
+            sha256sum "sinkrill-linux-$arch" > "sinkrill-linux-$arch.sha256"
           done
 
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
           files: |
-            thrum-linux-amd64
-            thrum-linux-amd64.sha256
-            thrum-linux-arm64
-            thrum-linux-arm64.sha256
+            sinkrill-linux-amd64
+            sinkrill-linux-amd64.sha256
+            sinkrill-linux-arm64
+            sinkrill-linux-arm64.sha256

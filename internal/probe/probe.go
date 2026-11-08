@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amoshydra/thrum/internal/capture"
-	"github.com/amoshydra/thrum/internal/logx"
-	"github.com/amoshydra/thrum/internal/netutil"
-	"github.com/amoshydra/thrum/internal/sonos"
-	"github.com/amoshydra/thrum/internal/stream"
+	"github.com/amoshydra/sinkrill/internal/capture"
+	"github.com/amoshydra/sinkrill/internal/logx"
+	"github.com/amoshydra/sinkrill/internal/netutil"
+	"github.com/amoshydra/sinkrill/internal/sonos"
+	"github.com/amoshydra/sinkrill/internal/stream"
 )
 
 type Options struct {
@@ -121,9 +121,9 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 	}
 
 	uri := sonos.StreamURI(lanIP, server.Port(), opts.Format)
-	metadata := sonos.RadioMetadata(opts.Station, "thrum")
+	metadata := sonos.RadioMetadata(opts.Station, "sinkrill")
 	if opts.Format == "wav" {
-		metadata = sonos.WAVMetadata(opts.Station, uri, "thrum")
+		metadata = sonos.WAVMetadata(opts.Station, uri, "sinkrill")
 	}
 	tuneStart := time.Now()
 	if err := speaker.SetAVTransportURI(ctx, uri, metadata); err != nil {

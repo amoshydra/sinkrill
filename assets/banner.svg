@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-label="Thrum — send your PC's sound to the speakers in the room">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-label="Sinkrill — send your PC's sound to the speakers in the room">
   <defs>
     <linearGradient id="hum" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#F59E0B"/>
@@ -19,7 +19,7 @@
     <path d="M 280 76 A 208 208 0 0 1 280 436" fill="none" stroke="url(#hum)" stroke-width="26" stroke-linecap="round" opacity="0.4"/>
   </g>
 
-  <text x="272" y="196" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="124" font-weight="700" letter-spacing="-5" fill="#F8FAFC">thrum</text>
+  <text x="272" y="196" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="124" font-weight="700" letter-spacing="-5" fill="#F8FAFC">sinkrill</text>
   <text x="274" y="246" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="25" fill="#94A3B8">Send your PC's sound to the speakers in the room.</text>
 
   <circle cx="904" cy="170" r="7" fill="#F59E0B" opacity="0.85"/>

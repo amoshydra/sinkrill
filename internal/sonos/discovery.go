@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/amoshydra/thrum/internal/logx"
-	"github.com/amoshydra/thrum/internal/netutil"
+	"github.com/amoshydra/sinkrill/internal/logx"
+	"github.com/amoshydra/sinkrill/internal/netutil"
 )
 
 const (

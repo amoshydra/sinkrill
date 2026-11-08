@@ -1,14 +1,14 @@
 # Contributing
 
-Thanks for improving Thrum.
+Thanks for improving Sinkrill.
 
 ## Setup
 
 ```bash
-git clone https://github.com/amoshydra/thrum.git
-cd thrum
+git clone https://github.com/amoshydra/sinkrill.git
+cd sinkrill
 make build
-./thrum --no-tune    # verify the stream without touching a speaker
+./sinkrill --no-tune    # verify the stream without touching a speaker
 ```
 
 A real Sonos speaker is needed to test the end-to-end path. For the stream
@@ -23,13 +23,13 @@ ffprobe http://127.0.0.1:8567/stream.wav
 - Keep the default path low-latency: WAV PCM, no warm-up buffer, no resampling,
   and a bounded per-listener queue.
 - If a change affects buffering or latency, mention it in the PR and, when
-  possible, measure it with `./thrum probe wav 30`.
+  possible, measure it with `./sinkrill probe wav 30`.
 - Run `make fmt`, `make vet` and `make test` before pushing (CI runs all three).
 - Keep the HTTP stream Icecast-compatible: no `Content-Length`, no chunked
   transfer encoding, `Connection: close`.
 - Do not add cloud services, accounts, or telemetry. This tool is LAN-only.
 - Prefer the standard library. The binary should stay dependency-free.
-- Use the Thrum name and voice from [`BRANDING.md`](BRANDING.md) in docs.
+- Use the Sinkrill name and voice from [`BRANDING.md`](BRANDING.md) in docs.
 
 ## Releasing
 
@@ -40,7 +40,7 @@ Releases are automated with [Release Please](https://github.com/googleapis/relea
 - Every push to `main` updates or opens a release PR titled
   `chore(main): release x.y.z`.
 - Merging that PR creates the `vX.Y.Z` tag, the GitHub Release, and the
-  `thrum-linux-amd64/arm64` binaries with checksums.
+  `sinkrill-linux-amd64/arm64` binaries with checksums.
 - The first release is bootstrapped with `"initial-version": "0.1.0"` in
   `release-please-config.json`.
 - While the version is below 1.0.0, the pre-release policy is:
@@ -61,7 +61,7 @@ The AUR `PKGBUILD` is updated manually per release: bump `pkgver`, run
 Include:
 
 - your distro, PipeWire/PulseAudio version, and (if used) ffmpeg version
-- `thrum version`
-- `thrum devices`
-- the log output (`thrum -v`)
+- `sinkrill version`
+- `sinkrill devices`
+- the log output (`sinkrill -v`)
 - `curl -s http://127.0.0.1:8567/status` while running
