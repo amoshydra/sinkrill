@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/amoshydra/thrum/internal/logx"
+	"github.com/amoshydra/sinkrill/internal/logx"
 )
 
 const (
@@ -115,8 +115,8 @@ func (c *Capture) command() (string, []string, error) {
 
 func parecArgs(source string) []string {
 	return []string{
-		"--client-name=thrum",
-		"--stream-name=thrum",
+		"--client-name=sinkrill",
+		"--stream-name=sinkrill",
 		"--device=" + source,
 		"--rate=48000",
 		"--format=s16le",

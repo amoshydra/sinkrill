@@ -5,10 +5,10 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 .PHONY: build test vet fmt install clean
 
 build:
-	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o thrum .
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o sinkrill .
 
 install: build
-	install -Dm755 thrum $(DESTDIR)$(PREFIX)/bin/thrum
+	install -Dm755 sinkrill $(DESTDIR)$(PREFIX)/bin/sinkrill
 
 test:
 	go test ./...
@@ -20,4 +20,4 @@ fmt:
 	gofmt -w .
 
 clean:
-	rm -f thrum
+	rm -f sinkrill

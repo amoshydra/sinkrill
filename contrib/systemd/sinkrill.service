@@ -1,13 +1,13 @@
 [Unit]
 Description=Stream PC audio to Sonos
-Documentation=https://github.com/amoshydra/thrum
+Documentation=https://github.com/amoshydra/sinkrill
 After=pipewire-pulse.service
 Wants=pipewire-pulse.service
 
 [Service]
 Type=simple
 # Edit the room name (or use --device <ip>). Add --format mp3 on weak Wi-Fi.
-ExecStart=%h/.local/bin/thrum --device "Living Room" --virtual-sink
+ExecStart=%h/.local/bin/sinkrill --device "Living Room" --virtual-sink
 Restart=on-failure
 RestartSec=5
 

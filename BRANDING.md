@@ -1,20 +1,38 @@
-# Thrum brand guide
+# Sinkrill brand guide
 
 ## The name
 
-**Thrum** · /θrʌm/ · *noun*
+**Sinkrill** · /ˈsɪŋk.rɪl/ · *noun*
 
-> A continuous low sound — the hum of a machine, or a room full of music.
+> *Sink* + *rill* — a rill is a small stream. The stream that runs from your
+> audio sink to the room.
 
-The name is the product: a quiet, continuous stream that fills a room. It is a
-real word, so it needs no invented backstory, but it is uncommon enough to be
-ownable and easy to search for alongside "Linux audio".
+Sinkrill is a coined compound, not a dictionary word, so it carries no borrowed
+meaning and no prior owners. It describes what the tool literally does: it
+catches audio at a virtual sink and runs it to the speakers. It is also unique
+across npm, AUR, PyPI, crates.io, Homebrew, and the US trademark register, which
+makes it easy to own and easy to search for.
+
+The join is deliberate, but check it before shortening: `sink` + `rill` also
+parses as **krill**. That is treated below as a feature, not an accident.
+
+## Mascot
+
+The companion mark is a **krill** — a small shrimp riding the current. It is a
+pun on the name and a brief for the product: small, quiet, and carried by the
+stream rather than running the show.
+
+- Use it in release notes, social avatars, and the README footer. Not in the CLI.
+- Keep it line-art or single-colour, in Hum `#F59E0B`, so it sits beside the pulse
+  mark without competing.
+- It must never replace the pulse mark as the app icon; the pulse is the
+  identifier, the krill is the personality.
 
 **Tagline:** *Send your PC's sound to the speakers in the room.*
 
 **Short description:** A low-latency PC-to-Sonos audio sink for Linux.
 
-**Elevator pitch:** Thrum turns your computer's audio output into a speaker on
+**Elevator pitch:** Sinkrill turns your computer's audio output into a speaker on
 the network. Pick it in the audio selector and the sound comes out of Sonos.
 
 ## Voice
@@ -24,22 +42,22 @@ Calm, precise, and warm. It is a system daemon, not a lifestyle app.
 - Say "your PC's sound", not "content" or "media".
 - Lead with what it does, then why it is fast.
 - No exclamation marks, no emoji in product copy, no growth-hacker verbs.
-- Be honest about limits. Thrum is ~0.1 s, not 0 ms; say so.
+- Be honest about limits. Sinkrill is ~0.1 s, not 0 ms; say so.
 - Never imply official Sonos affiliation.
 
 ## Naming conventions
 
 | Thing | Value |
 |-------|-------|
-| Product | **Thrum** |
-| Binary / command | `thrum` |
-| Repository | `github.com/amoshydra/thrum` |
-| Go module | `github.com/amoshydra/thrum` |
-| systemd user unit | `thrum.service` |
-| AUR package | `thrum` |
-| Virtual output device | **Thrum** (`thrum` sink, `thrum.monitor`) |
-| Default station name | `Thrum` |
-| Latency probe | `thrum probe` |
+| Product | **Sinkrill** |
+| Binary / command | `sinkrill` |
+| Repository | `github.com/amoshydra/sinkrill` |
+| Go module | `github.com/amoshydra/sinkrill` |
+| systemd user unit | `sinkrill.service` |
+| AUR package | `sinkrill` |
+| Virtual output device | **Sinkrill** (`sinkrill` sink, `sinkrill.monitor`) |
+| Default station name | `Sinkrill` |
+| Latency probe | `sinkrill probe` |
 
 ## Logo
 
@@ -87,6 +105,6 @@ the product should feel native on any Linux desktop.
 
 ## Trademark
 
-Thrum is an independent project and is **not affiliated with, endorsed by, or
+Sinkrill is an independent project and is **not affiliated with, endorsed by, or
 sponsored by Sonos, Inc.** "Sonos" is a trademark of Sonos, Inc. and is used
 only to describe compatibility.

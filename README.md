@@ -1,27 +1,27 @@
-![Thrum](assets/banner.svg)
+![Sinkrill](assets/banner.svg)
 
-[![CI](https://github.com/amoshydra/thrum/actions/workflows/ci.yml/badge.svg)](https://github.com/amoshydra/thrum/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/amoshydra/thrum)](https://github.com/amoshydra/thrum/releases)
-[![Go](https://img.shields.io/github/go-mod/go-version/amoshydra/thrum)](go.mod)
-[![License](https://img.shields.io/github/license/amoshydra/thrum)](LICENSE)
+[![CI](https://github.com/amoshydra/sinkrill/actions/workflows/ci.yml/badge.svg)](https://github.com/amoshydra/sinkrill/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/amoshydra/sinkrill)](https://github.com/amoshydra/sinkrill/releases)
+[![Go](https://img.shields.io/github/go-mod/go-version/amoshydra/sinkrill)](go.mod)
+[![License](https://img.shields.io/github/license/amoshydra/sinkrill)](LICENSE)
 
-**Thrum** streams your Linux PC's audio output to Sonos speakers over your LAN —
+**Sinkrill** streams your Linux PC's audio output to Sonos speakers over your LAN —
 an AirPlay-like "PC audio" sink in a single static binary.
 
-> **thrum** *(noun)*: a continuous low sound — the hum of a machine, or a room
-> full of music.
+> **sinkrill** *(noun)*: *rill* is a small stream. A sinkrill is the stream that
+> runs from your audio sink to the room.
 
 It defaults to uncompressed **WAV PCM**, because Sonos gives a WAV file stream
 far less buffering than an internet-radio style MP3 stream: **~0.1 s** buffered
 instead of **~4.8 s** (measured; see [Latency](#latency)).
 
 ```bash
-thrum --virtual-sink                 # recommended: add a "Thrum" output device
-thrum "Living Room" --virtual-sink   # pick a room
-thrum --no-tune                      # only serve the stream; tune Sonos yourself
+sinkrill --virtual-sink                 # recommended: add a "Sinkrill" output device
+sinkrill "Living Room" --virtual-sink   # pick a room
+sinkrill --no-tune                      # only serve the stream; tune Sonos yourself
 ```
 
-Without `--virtual-sink`, Thrum mirrors your current output instead: the PC and
+Without `--virtual-sink`, Sinkrill mirrors your current output instead: the PC and
 Sonos both play, and no new device appears.
 
 Press `Ctrl+C` to stop playback and shut down.
@@ -29,7 +29,7 @@ Press `Ctrl+C` to stop playback and shut down.
 ## Why
 
 - **Looks like a speaker.** `--virtual-sink` creates a real PipeWire/PulseAudio
-  output device called **Thrum**, so you pick it in your audio settings or
+  output device called **Sinkrill**, so you pick it in your audio settings or
   per-app.
 - **Low latency by default.** WAV over plain HTTP avoids Sonos's internet-radio
   pre-buffer: ~0.1 s buffered, measured, instead of ~4.8 s with MP3.
@@ -41,21 +41,21 @@ Press `Ctrl+C` to stop playback and shut down.
 
 ### Output device (recommended)
 
-`--virtual-sink` creates a PipeWire/PulseAudio output named **Thrum**:
+`--virtual-sink` creates a PipeWire/PulseAudio output named **Sinkrill**:
 
 ```bash
-thrum --virtual-sink
+sinkrill --virtual-sink
 ```
 
-Pick **Thrum** in your audio settings (or per-app in `pavucontrol`), and only
-the audio routed to it goes to Sonos. The device disappears when Thrum exits.
+Pick **Sinkrill** in your audio settings (or per-app in `pavucontrol`), and only
+the audio routed to it goes to Sonos. The device disappears when Sinkrill exits.
 
 ### Mirror the current output
 
-Without the flag, Thrum captures whatever is playing on your default output:
+Without the flag, Sinkrill captures whatever is playing on your default output:
 
 ```bash
-thrum
+sinkrill
 ```
 
 The PC and Sonos both play, and no new device appears. Use this when you just
@@ -76,7 +76,7 @@ want the room to hear what the PC is playing.
 ```
 
 1. `parec` records the monitor of your current audio output
-   (`@DEFAULT_MONITOR@`), or of the virtual **Thrum** device created by
+   (`@DEFAULT_MONITOR@`), or of the virtual **Sinkrill** device created by
    `--virtual-sink`. If `parec` is missing, `ffmpeg -f pulse` is used instead.
 2. The bytes are served as a continuous 48 kHz/16-bit stereo WAV stream.
 3. Sonos is told to play `http://<lan-ip>:<port>/stream.wav`. Because that looks
@@ -111,20 +111,20 @@ sudo apt install pulseaudio-utils
 Download the latest release, verify the checksum, and put it on your `PATH`:
 
 ```bash
-curl -LO https://github.com/amoshydra/thrum/releases/latest/download/thrum-linux-amd64
-curl -LO https://github.com/amoshydra/thrum/releases/latest/download/thrum-linux-amd64.sha256
-sha256sum -c thrum-linux-amd64.sha256
+curl -LO https://github.com/amoshydra/sinkrill/releases/latest/download/sinkrill-linux-amd64
+curl -LO https://github.com/amoshydra/sinkrill/releases/latest/download/sinkrill-linux-amd64.sha256
+sha256sum -c sinkrill-linux-amd64.sha256
 
-install -Dm755 thrum-linux-amd64 ~/.local/bin/thrum
-thrum --help
+install -Dm755 sinkrill-linux-amd64 ~/.local/bin/sinkrill
+sinkrill --help
 ```
 
-Use `thrum-linux-arm64` on ARM machines.
+Use `sinkrill-linux-arm64` on ARM machines.
 
 ### Go
 
 ```bash
-go install github.com/amoshydra/thrum@latest
+go install github.com/amoshydra/sinkrill@latest
 ```
 
 Make sure `$(go env GOPATH)/bin` is on your `PATH`.
@@ -134,46 +134,46 @@ Make sure `$(go env GOPATH)/bin` is on your `PATH`.
 A `PKGBUILD` is in [`contrib/aur`](contrib/aur). Once the package is in the AUR:
 
 ```bash
-yay -S thrum
+yay -S sinkrill
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/amoshydra/thrum.git
-cd thrum
-make            # builds ./thrum
+git clone https://github.com/amoshydra/sinkrill.git
+cd sinkrill
+make            # builds ./sinkrill
 make install    # installs to /usr/local/bin (PREFIX=/... to override)
 ```
 
 ## Usage
 
 ```bash
-# Recommended: add the "Thrum" output device
-thrum --virtual-sink
+# Recommended: add the "Sinkrill" output device
+sinkrill --virtual-sink
 
 # Choose a room by name, or a speaker by IP
-thrum "Living Room" --virtual-sink
-thrum --device 192.168.1.42 --virtual-sink
+sinkrill "Living Room" --virtual-sink
+sinkrill --device 192.168.1.42 --virtual-sink
 
 # Mirror the current output instead (no new device)
-thrum
-thrum "Living Room"
+sinkrill
+sinkrill "Living Room"
 
 # List what's on the network
-thrum devices
+sinkrill devices
 
 # Stop playback without starting a stream
-thrum stop "Living Room"
+sinkrill stop "Living Room"
 
 # Serve only: prints the URL to paste into the Sonos app
-thrum --no-tune
+sinkrill --no-tune
 
 # Diagnose silence, capture, and routing
-thrum doctor
+sinkrill doctor
 
 # Capture a specific source instead of the default output
-thrum --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
+sinkrill --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 ```
 
 ### Options
@@ -193,8 +193,8 @@ thrum --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 | `--volume <0-100>` | unchanged | Set the speaker volume on start |
 | `--keepalive` | off | Re-tune if the speaker stops by itself |
 | `--no-tune` | off | Don't control Sonos; only serve the stream |
-| `--virtual-sink [name]` | off | Create the **Thrum** output device (recommended); default name `thrum` |
-| `--station <name>` | `Thrum` | Name shown on the speaker |
+| `--virtual-sink [name]` | off | Create the **Sinkrill** output device (recommended); default name `sinkrill` |
+| `--station <name>` | `Sinkrill` | Name shown on the speaker |
 | `-v, --verbose` | off | Verbose logs |
 
 ### HTTP endpoints
@@ -243,21 +243,21 @@ speaker may stop. `--keepalive` re-tunes automatically.
 
 ## Output device mode (recommended)
 
-`--virtual-sink` creates a real output device called **Thrum** in
+`--virtual-sink` creates a real output device called **Sinkrill** in
 PipeWire/PulseAudio:
 
 ```bash
-thrum --virtual-sink
+sinkrill --virtual-sink
 ```
 
-Now choose **Thrum** as the output in your desktop audio settings (or per-app in
+Now choose **Sinkrill** as the output in your desktop audio settings (or per-app in
 `pavucontrol` → Playback, or with `wpctl set-default <id>`). Only audio routed
 to that device goes to the speaker; everything else keeps playing locally. The
-device is removed again when Thrum exits.
+device is removed again when Sinkrill exits.
 
 ```bash
-thrum --virtual-sink thrum          # explicit name
-thrum --virtual-sink my-tv-sink     # any valid sink name
+sinkrill --virtual-sink sinkrill          # explicit name
+sinkrill --virtual-sink my-tv-sink     # any valid sink name
 ```
 
 If you'd rather own the device yourself (so it survives restarts), create it
@@ -265,35 +265,35 @@ once and capture its monitor:
 
 ```bash
 pactl load-module module-null-sink \
-  sink_name=thrum \
-  sink_properties=device.description=Thrum
+  sink_name=sinkrill \
+  sink_properties=device.description=Sinkrill
 
-thrum --source thrum.monitor
+sinkrill --source sinkrill.monitor
 ```
 
 ## Control
 
-Thrum runs in the foreground. `Ctrl+C` stops the speaker, kills the capture
+Sinkrill runs in the foreground. `Ctrl+C` stops the speaker, kills the capture
 process, removes the virtual device, and exits.
 
 | What | How |
 |------|-----|
-| Start / stop | `thrum --virtual-sink` / `Ctrl+C` (or `thrum stop "Living Room"`) |
+| Start / stop | `sinkrill --virtual-sink` / `Ctrl+C` (or `sinkrill stop "Living Room"`) |
 | Volume | Sonos app, or `--volume 40` on start |
-| Pause / resume | Sonos app; long pauses may drop the stream connection, then restart `thrum` (or run with `--keepalive`) |
-| Change room | stop, then `thrum "Other Room" --virtual-sink` |
+| Pause / resume | Sonos app; long pauses may drop the stream connection, then restart `sinkrill` (or run with `--keepalive`) |
+| Change room | stop, then `sinkrill "Other Room" --virtual-sink` |
 | Inspect | `curl http://<lan-ip>:8567/status` |
 | Preview | open `http://<lan-ip>:8567/stream.wav` in VLC or a browser |
 
 ## Run as a user service
 
-Copy [`contrib/systemd/thrum.service`](contrib/systemd/thrum.service) to
+Copy [`contrib/systemd/sinkrill.service`](contrib/systemd/sinkrill.service) to
 `~/.config/systemd/user/`, edit the room name, then:
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now thrum
-journalctl --user -u thrum -f
+systemctl --user enable --now sinkrill
+journalctl --user -u sinkrill -f
 ```
 
 ## If you hear nothing
@@ -301,18 +301,18 @@ journalctl --user -u thrum -f
 Run:
 
 ```bash
-thrum doctor
+sinkrill doctor
 ```
 
 It checks the server, the capture, the output device, and the speaker, and
 prints the next command to run.
 
 If the capture is **stalled** (it can happen after a PipeWire/PulseAudio
-hiccup), restart Thrum. The 5-second watchdog normally recovers this
+hiccup), restart Sinkrill. The 5-second watchdog normally recovers this
 automatically, but a restart always recreates the sink and capture:
 
 ```bash
-systemctl --user restart thrum
+systemctl --user restart sinkrill
 # or, if running in a terminal: Ctrl+C, then start it again
 ```
 
@@ -323,9 +323,9 @@ is playing" does not trigger it.
 Then check the three volume/routing stages:
 
 ```bash
-pactl info | grep 'Default Sink'      # should be: thrum
-pactl get-sink-mute thrum             # should be: no
-pactl set-sink-volume thrum 100%      # keep Thrum at 100%, control level on Sonos
+pactl info | grep 'Default Sink'      # should be: sinkrill
+pactl get-sink-mute sinkrill             # should be: no
+pactl set-sink-volume sinkrill 100%      # keep Sinkrill at 100%, control level on Sonos
 ```
 
 And check the speaker: the Sonos app should show **playing**, not muted, with a
@@ -335,13 +335,13 @@ Test the whole path with a generated tone (this works on Arch too; the
 `/usr/share/sounds/alsa/...` path is Debian/Ubuntu-only):
 
 ```bash
-ffmpeg -f lavfi -i "sine=frequency=440:duration=2" -ar 48000 -ac 2 /tmp/thrum-tone.wav
-paplay --device=thrum /tmp/thrum-tone.wav
+ffmpeg -f lavfi -i "sine=frequency=440:duration=2" -ar 48000 -ac 2 /tmp/sinkrill-tone.wav
+paplay --device=sinkrill /tmp/sinkrill-tone.wav
 ```
 
 If `paplay` says `open(): No such file or directory`, the *file* is missing —
-that is not a Thrum or device error. If the tone is silent on the speaker, run
-`thrum doctor` again.
+that is not a Sinkrill or device error. If the tone is silent on the speaker, run
+`sinkrill doctor` again.
 
 ## Troubleshooting
 
@@ -349,9 +349,9 @@ that is not a Thrum or device error. If the tone is silent on the speaker, run
 
 - Make sure the speakers are powered on and on the same network.
 - SSDP multicast is often blocked by VPNs, guest Wi-Fi/AP isolation, or some
-  switches. Thrum falls back to scanning the local `/24` on port `1400`, but a
+  switches. Sinkrill falls back to scanning the local `/24` on port `1400`, but a
   VPN that captures LAN traffic can still hide the speakers. Try
-  `thrum devices --timeout 8000`, or pass `--device <ip>` directly.
+  `sinkrill devices --timeout 8000`, or pass `--device <ip>` directly.
 - If the scan also fails, find the speaker's IP in your router, then use
   `--device <ip>`.
 
@@ -361,7 +361,7 @@ that is not a Thrum or device error. If the tone is silent on the speaker, run
   firewall (e.g. `ufw allow 8567/tcp`) and that `--host` is the LAN interface's
   address, not a VPN or Docker address.
 - Make sure the port isn't already in use; use `--port 0` to pick a free one.
-- Try `thrum --no-tune` and open
+- Try `sinkrill --no-tune` and open
   `http://<lan-ip>:<port>/stream.wav` from another device to verify reachability.
 
 **No sound, but the stream is running**
@@ -382,13 +382,13 @@ that is not a Thrum or device error. If the tone is silent on the speaker, run
 **The speaker stops after a while**
 
 - Live streams stop themselves when the connection hiccups. Restart with
-  `--keepalive` to let Thrum re-tune automatically. Note that this can also
+  `--keepalive` to let Sinkrill re-tune automatically. Note that this can also
   undo a manual stop from the Sonos app.
 
 **The log says `capture delivered no bytes ... restarting`**
 
 - That is the watchdog recovering a stalled `parec`. It should recover in a few
-  seconds. If it repeats, check `pactl list short sources` and run `thrum doctor`.
+  seconds. If it repeats, check `pactl list short sources` and run `sinkrill doctor`.
 - This is not triggered by silence: an idle sink still delivers silent PCM
   frames. It only fires when the capture process produces zero bytes.
 
@@ -402,7 +402,7 @@ that is not a Thrum or device error. If the tone is silent on the speaker, run
 ```bash
 make test        # go test ./...
 make vet         # go vet ./...
-make build       # ./thrum
+make build       # ./sinkrill
 make fmt
 ```
 
@@ -410,22 +410,22 @@ Measure how much audio Sonos buffers (stop the running service first; the probe
 retunes the speaker):
 
 ```bash
-./thrum probe wav 30
-./thrum probe mp3 30
+./sinkrill probe wav 30
+./sinkrill probe mp3 30
 ```
 
 Releases are managed by [Release Please](CONTRIBUTING.md#releasing): merge the
 release PR to tag `vX.Y.Z` and publish the binaries.
 
 The project started as a Node/TypeScript CLI, was rewritten in Go for a single
-static binary, and is now called Thrum. The old implementations are in git
+static binary, and is now called Sinkrill. The old implementations are in git
 history.
 
 See [`BRANDING.md`](BRANDING.md) for the name, logo, palette, and voice.
 
 ## Trademark
 
-Thrum is an independent project and is **not affiliated with, endorsed by, or
+Sinkrill is an independent project and is **not affiliated with, endorsed by, or
 sponsored by Sonos, Inc.** "Sonos" is a trademark of Sonos, Inc. and is used
 only to describe compatibility.
 

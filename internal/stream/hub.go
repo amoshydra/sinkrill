@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/amoshydra/thrum/internal/logx"
+	"github.com/amoshydra/sinkrill/internal/logx"
 )
 
 type Client struct {

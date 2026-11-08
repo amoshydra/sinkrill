@@ -3,7 +3,7 @@ package virtualsink
 import "testing"
 
 func TestValidateName(t *testing.T) {
-	valid := []string{"thrum", "thrum-test", "My_Sink.1"}
+	valid := []string{"sinkrill", "sinkrill-test", "My_Sink.1"}
 	for _, name := range valid {
 		if err := validateName(name); err != nil {
 			t.Errorf("validateName(%q) = %v, want nil", name, err)

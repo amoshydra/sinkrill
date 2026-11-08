@@ -9,12 +9,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/amoshydra/thrum/internal/capture"
-	"github.com/amoshydra/thrum/internal/logx"
-	"github.com/amoshydra/thrum/internal/netutil"
-	"github.com/amoshydra/thrum/internal/sonos"
-	"github.com/amoshydra/thrum/internal/stream"
-	"github.com/amoshydra/thrum/internal/virtualsink"
+	"github.com/amoshydra/sinkrill/internal/capture"
+	"github.com/amoshydra/sinkrill/internal/logx"
+	"github.com/amoshydra/sinkrill/internal/netutil"
+	"github.com/amoshydra/sinkrill/internal/sonos"
+	"github.com/amoshydra/sinkrill/internal/stream"
+	"github.com/amoshydra/sinkrill/internal/virtualsink"
 )
 
 type Options struct {
@@ -290,9 +290,9 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 	}
 	log.Infof("preview locally: http://%s:%d/%s", lanIP, server.Port(), file)
 
-	metadata := sonos.RadioMetadata(opts.Station, "thrum")
+	metadata := sonos.RadioMetadata(opts.Station, "sinkrill")
 	if opts.Format == "wav" {
-		metadata = sonos.WAVMetadata(opts.Station, streamURI, "thrum")
+		metadata = sonos.WAVMetadata(opts.Station, streamURI, "sinkrill")
 	}
 	tune := func() error {
 		if speaker == nil {
