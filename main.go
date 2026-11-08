@@ -152,7 +152,7 @@ func runStart(args []string) int {
 	intVar(fs, &opts.Volume, "volume", "", -1, "set speaker volume (0-100)")
 	boolVar(fs, &opts.Keepalive, "keepalive", "", false, "re-tune if the speaker stops")
 	boolVar(fs, &noTune, "no-tune", "", false, "only serve the stream")
-	fs.Var(&virtualSink, "virtual-sink", "create/use an output device (default sonos)")
+	fs.Var(&virtualSink, "virtual-sink", "create/use an output device (default thrum)")
 	strVar(fs, &opts.Station, "station", "", opts.Station, "station name shown on the speaker")
 	verbose := boolVar(fs, nil, "verbose", "v", false, "verbose logging")
 
@@ -356,7 +356,7 @@ func boolVar(fs *flag.FlagSet, target *bool, long, short string, value bool, usa
 	return target
 }
 
-// optionalString supports `--virtual-sink` (uses "sonos") and
+// optionalString supports `--virtual-sink` (uses "thrum") and
 // `--virtual-sink=name`.
 type optionalString struct {
 	set  bool
