@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/amoshydra/thrum/compare/v0.1.0...v0.1.1) (2026-11-08)
+
+
+### Features
+
+* hint when no virtual sink is configured ([0a1c9c9](https://github.com/amoshydra/thrum/commit/0a1c9c93033c0a323a5b04bdc072e15ac70ee97a))
+
 ## 0.1.0 (2026-11-08)
 
 
