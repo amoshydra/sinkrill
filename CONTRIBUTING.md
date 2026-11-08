@@ -31,6 +31,25 @@ ffprobe http://127.0.0.1:8567/stream.wav
 - Prefer the standard library. The binary should stay dependency-free.
 - Use the Thrum name and voice from [`BRANDING.md`](BRANDING.md) in docs.
 
+## Releasing
+
+Releases are automated with [Release Please](https://github.com/googleapis/release-please):
+
+- Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`,
+  `fix:`, `feat!:`).
+- Every push to `main` updates or opens a release PR titled
+  `chore(main): release x.y.z`.
+- Merging that PR creates the `vX.Y.Z` tag, the GitHub Release, and the
+  `thrum-linux-amd64/arm64` binaries with checksums.
+- The first release is bootstrapped from `0.0.0` in
+  `.release-please-manifest.json`, so it becomes `0.1.0`.
+
+Release PRs opened with `GITHUB_TOKEN` do not trigger CI (GitHub suppresses
+token-created events); the merge commit on `main` does.
+
+The AUR `PKGBUILD` is updated manually per release: bump `pkgver`, run
+`updpkgsums`, rebuild to regenerate `.SRCINFO`, and push to the AUR.
+
 ## Reporting bugs
 
 Include:

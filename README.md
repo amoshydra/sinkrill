@@ -385,6 +385,9 @@ retunes the speaker):
 ./thrum probe mp3 30
 ```
 
+Releases are managed by [Release Please](CONTRIBUTING.md#releasing): merge the
+release PR to tag `vX.Y.Z` and publish the binaries.
+
 The project started as a Node/TypeScript CLI, was rewritten in Go for a single
 static binary, and is now called Thrum. The old implementations are in git
 history.
