@@ -19,6 +19,10 @@ const (
 	SampleRate    = 48000
 	Channels      = 2
 	BitsPerSample = 16
+
+	// readBufferSize is the chunk size handed to the stream hub. Keeping it
+	// small bounds the coalescing delay added per listener.
+	readBufferSize = 32 * 1024
 )
 
 type Format string
@@ -82,88 +86,13 @@ func New(opts Options) *Capture {
 
 // Start validates the capture backend and launches the restart loop.
 func (c *Capture) Start(ctx context.Context, cb Callbacks) error {
-	if _, _, err := c.command(); err != nil {
+	if _, _, err := selectBackend(c.opts); err != nil {
 		return err
 	}
 	c.cb = cb
 	go c.loop(ctx)
 	go c.watchdog(ctx)
 	return nil
-}
-
-func (c *Capture) command() (string, []string, error) {
-	if c.opts.Format == FormatPCM {
-		if c.opts.ParecPath != "" {
-			if parec, err := exec.LookPath(c.opts.ParecPath); err == nil {
-				return parec, parecArgs(c.opts.Source), nil
-			}
-		}
-		if ffmpeg, err := exec.LookPath(c.opts.FFmpegPath); err == nil {
-			return ffmpeg, ffmpegPCMArgs(c.opts.Source), nil
-		}
-		return "", nil, fmt.Errorf(
-			"no capture backend found: install parec (libpulse) or ffmpeg, or pass --ffmpeg/--parec",
-		)
-	}
-
-	ffmpeg, err := exec.LookPath(c.opts.FFmpegPath)
-	if err != nil {
-		return "", nil, fmt.Errorf("ffmpeg not found at %q (needed for --format mp3)", c.opts.FFmpegPath)
-	}
-	return ffmpeg, ffmpegMP3Args(c.opts.Source, c.opts.Bitrate), nil
-}
-
-func parecArgs(source string) []string {
-	return []string{
-		"--client-name=sinkrill",
-		"--stream-name=sinkrill",
-		"--device=" + source,
-		"--rate=48000",
-		"--format=s16le",
-		"--channels=2",
-		"--latency-msec=20",
-		"--process-time-msec=10",
-		"--raw",
-	}
-}
-
-func ffmpegBaseArgs(source string) []string {
-	return []string{
-		"-hide_banner",
-		"-loglevel", "warning",
-		"-nostdin",
-		"-f", "pulse",
-		"-fragment_size", "2400",
-		"-i", source,
-		"-ac", "2",
-	}
-}
-
-func ffmpegPCMArgs(source string) []string {
-	args := ffmpegBaseArgs(source)
-	return append(args,
-		"-ar", "48000",
-		"-c:a", "pcm_s16le",
-		"-flush_packets", "1",
-		"-avioflags", "direct",
-		"-f", "s16le",
-		"pipe:1",
-	)
-}
-
-func ffmpegMP3Args(source string, bitrate int) []string {
-	args := ffmpegBaseArgs(source)
-	return append(args,
-		"-c:a", "libmp3lame",
-		"-b:a", fmt.Sprintf("%dk", bitrate),
-		"-compression_level", "0",
-		"-write_xing", "0",
-		"-id3v2_version", "0",
-		"-flush_packets", "1",
-		"-avioflags", "direct",
-		"-f", "mp3",
-		"pipe:1",
-	)
 }
 
 func (c *Capture) loop(ctx context.Context) {
@@ -214,7 +143,7 @@ func (c *Capture) loop(ctx context.Context) {
 }
 
 func (c *Capture) runOnce() error {
-	path, args, err := c.command()
+	path, args, err := selectBackend(c.opts)
 	if err != nil {
 		return err
 	}
@@ -247,7 +176,7 @@ func (c *Capture) runOnce() error {
 		c.mu.Unlock()
 	}()
 
-	buf := make([]byte, 32*1024)
+	buf := make([]byte, readBufferSize)
 	for {
 		n, readErr := stdout.Read(buf)
 		if n > 0 {
