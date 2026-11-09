@@ -31,6 +31,26 @@ jobs:
       - name: Build
         run: CGO_ENABLED=0 go build -trimpath -o /tmp/sinkrill .
 
+  # Everything outside internal/capture is portable. Running the suite here
+  # catches OS-specific breakage in path handling, signals, and the stream
+  # hub. GitHub's Windows runners have no audio endpoint, so capture itself
+  # cannot be exercised here.
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./... -count=1
+
   # The capture layer is build-tagged per platform. This keeps the non-Linux
   # paths compiling even though they cannot be run here.
   cross:
