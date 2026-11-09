@@ -7,7 +7,7 @@ Wants=pipewire-pulse.service
 [Service]
 Type=simple
 # Edit the room name (or use --device <ip>). Add --format mp3 on weak Wi-Fi.
-ExecStart=%h/.local/bin/sinkrill --device "Living Room" --virtual-sink
+ExecStart=/usr/bin/sinkrill --device "Living Room" --virtual-sink
 Restart=on-failure
 RestartSec=5
 

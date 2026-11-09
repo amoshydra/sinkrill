@@ -318,10 +318,20 @@ process, removes the virtual device, and exits.
 
 ## Run as a user service
 
-Copy [`contrib/systemd/sinkrill.service`](contrib/systemd/sinkrill.service) to
-`~/.config/systemd/user/`, edit the room name, then:
+The unit runs `/usr/bin/sinkrill`, which is where the Arch package puts it. If
+you installed the binary somewhere else, point `ExecStart` at it.
 
 ```bash
+mkdir -p ~/.config/systemd/user
+cp contrib/systemd/sinkrill.service ~/.config/systemd/user/
+
+# only if you did not install to /usr/bin:
+sed -i "s|/usr/bin/sinkrill|$HOME/.local/bin/sinkrill|" \
+  ~/.config/systemd/user/sinkrill.service
+
+# set the room name
+$EDITOR ~/.config/systemd/user/sinkrill.service
+
 systemctl --user daemon-reload
 systemctl --user enable --now sinkrill
 journalctl --user -u sinkrill -f
