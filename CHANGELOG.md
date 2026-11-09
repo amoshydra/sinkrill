@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/amoshydra/sinkrill/compare/v0.2.0...v0.2.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* keep the newest audio when a chunk exceeds the client queue ([27f536c](https://github.com/amoshydra/sinkrill/commit/27f536c0b42f8b9f396e2ba4de73df01844186d4))
+* point the user unit at /usr/bin/sinkrill ([719eba1](https://github.com/amoshydra/sinkrill/commit/719eba1acd2b0448097e43d0a829af903c4e5e19))
+
 ## [0.2.0](https://github.com/amoshydra/sinkrill/compare/v0.1.0...v0.2.0) (2026-11-08)
 
 
