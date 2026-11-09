@@ -349,6 +349,11 @@ func localStatus(port int) (*sink.Status, bool) {
 	if err := json.NewDecoder(resp.Body).Decode(&st); err != nil {
 		return nil, false
 	}
+	// Another service could return valid JSON on this path; require the fields
+	// a real instance always reports.
+	if st.Station == "" {
+		return nil, false
+	}
 	return &st, true
 }
 

@@ -21,6 +21,7 @@ func TestDescribeListenErrorDetectsRunningInstance(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(Status{
 			Station: "homedesktop streaming audio",
+			Format:  "wav",
 			Device:  &DeviceStatus{Name: "Den", IP: "192.168.0.188"},
 		})
 	}))
@@ -66,6 +67,7 @@ func TestCheckPortFreeReportsRunningInstance(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(Status{
 			Station: "homedesktop streaming audio",
+			Format:  "wav",
 			Device:  &DeviceStatus{Name: "Den", IP: "192.168.0.188"},
 		})
 	}))
@@ -86,6 +88,35 @@ func TestCheckPortFreeReportsRunningInstance(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "already running") {
 		t.Errorf("expected the running-instance message:\n%v", err)
+	}
+}
+
+// An unrelated service that happens to answer JSON must not be reported as a
+// running sinkrill.
+func TestCheckPortFreeRejectsForeignJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = checkPortFree(Options{Bind: "127.0.0.1", Port: port})
+	if err == nil {
+		t.Fatal("expected the preflight to fail on a busy port")
+	}
+	if strings.Contains(err.Error(), "already running") {
+		t.Errorf("should not claim sinkrill owns the port:\n%v", err)
+	}
+	if !strings.Contains(err.Error(), "--port 0") {
+		t.Errorf("expected the generic hint:\n%v", err)
 	}
 }
 

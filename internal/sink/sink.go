@@ -410,6 +410,13 @@ func describeListenError(opts Options, err error) error {
 	return fmt.Errorf("port %d is already in use; pass --port 0 to pick a free one", opts.Port)
 }
 
+// looksLikeSinkrill guards against mistaking an unrelated JSON service on the
+// port for a running instance. A real one always reports a station and a media
+// format; `{}` does not.
+func looksLikeSinkrill(st *Status) bool {
+	return st != nil && st.Station != "" && (st.Format == "wav" || st.Format == "mp3")
+}
+
 // statusOnPort asks a running instance on the same port who it is.
 func statusOnPort(opts Options) (*Status, bool) {
 	host := opts.Bind
@@ -427,6 +434,9 @@ func statusOnPort(opts Options) (*Status, bool) {
 	}
 	var st Status
 	if err := json.NewDecoder(resp.Body).Decode(&st); err != nil {
+		return nil, false
+	}
+	if !looksLikeSinkrill(&st) {
 		return nil, false
 	}
 	return &st, true
