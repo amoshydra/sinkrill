@@ -81,6 +81,13 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 		return err
 	}
 
+	// Check the port before anything expensive. Device discovery takes seconds
+	// and --virtual-sink is a side effect, both pointless if another instance
+	// already owns the port.
+	if err := checkPortFree(opts); err != nil {
+		return err
+	}
+
 	lanIP := opts.Host
 	if lanIP == "" {
 		lanIP = netutil.LANIP()
@@ -368,6 +375,17 @@ func validate(opts Options) error {
 		return fmt.Errorf("bind address must not be empty")
 	}
 	return nil
+}
+
+// checkPortFree binds and immediately releases the port so a clash is reported
+// before discovery runs. The real listener still handles the (tiny) race
+// between this probe and the actual bind.
+func checkPortFree(opts Options) error {
+	ln, err := net.Listen("tcp", net.JoinHostPort(opts.Bind, strconv.Itoa(opts.Port)))
+	if err != nil {
+		return describeListenError(opts, err)
+	}
+	return ln.Close()
 }
 
 // describeListenError turns "address already in use" into something actionable.
