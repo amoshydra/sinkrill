@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/amoshydra/sinkrill/internal/capture"
+	"github.com/amoshydra/sinkrill/internal/sonos"
 )
 
 // stallFallback is used when a capture snapshot does not carry its own timeout.
@@ -53,4 +54,21 @@ func shouldRetune(state string, sinceLast time.Duration) bool {
 		return false
 	}
 	return sinceLast >= retuneCooldown
+}
+
+// shouldStopSpeaker reports whether shutdown may stop the room. If another
+// instance has retuned the speaker to its own stream, stopping it would silence
+// that stream, so leave it alone.
+func shouldStopSpeaker(current, ours string) bool {
+	if current == "" || ours == "" {
+		return true
+	}
+	return current == ours
+}
+
+func describeDevice(d *sonos.Device) string {
+	if d == nil {
+		return "the room"
+	}
+	return d.Name
 }

@@ -127,6 +127,24 @@ func TestShouldRetune(t *testing.T) {
 	}
 }
 
+func TestShouldStopSpeaker(t *testing.T) {
+	tests := []struct {
+		current string
+		ours    string
+		want    bool
+	}{
+		{"http://a/stream.wav", "http://a/stream.wav", true},
+		{"http://b/stream.wav", "http://a/stream.wav", false},
+		{"", "http://a/stream.wav", true},
+		{"http://b/stream.wav", "", true},
+	}
+	for _, tc := range tests {
+		if got := shouldStopSpeaker(tc.current, tc.ours); got != tc.want {
+			t.Errorf("shouldStopSpeaker(%q, %q) = %v, want %v", tc.current, tc.ours, got, tc.want)
+		}
+	}
+}
+
 func TestValidate(t *testing.T) {
 	base := func() Options {
 		return Options{

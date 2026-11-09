@@ -212,7 +212,15 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 			defer cancel()
 
 			if speaker != nil && tuned.Load() {
-				if err := speaker.Stop(stopCtx); err != nil {
+				// Another instance may have retuned the room since. Only stop
+				// the speaker if it is still playing this instance's stream.
+				current := ""
+				if pos, err := speaker.Position(stopCtx); err == nil {
+					current = pos.URI
+				}
+				if !shouldStopSpeaker(current, getURI()) {
+					log.Infof("left %s alone; it is playing another stream now", describeDevice(device))
+				} else if err := speaker.Stop(stopCtx); err != nil {
 					log.Debugf("could not stop speaker: %v", err)
 				} else if device != nil {
 					log.Infof("stopped playback on %s (%s)", device.Name, device.IP)

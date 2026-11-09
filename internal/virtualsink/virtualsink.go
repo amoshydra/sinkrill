@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,9 @@ type Sink struct {
 	MonitorSource string
 	// Created is true when this process created the sink and should remove it.
 	Created bool
+	// ModuleID is the PulseAudio module this process loaded, when Created.
+	// Removing by id avoids unloading another instance's module.
+	ModuleID int
 
 	log *logx.Logger
 }
@@ -35,8 +39,9 @@ func Ensure(name string, log *logx.Logger) (*Sink, error) {
 	if err != nil {
 		return nil, err
 	}
+	moduleID := 0
 	if !exists {
-		_, err = pactl(
+		out, err := pactl(
 			"load-module", "module-null-sink",
 			"sink_name="+name,
 			"sink_properties=device.description=Sinkrill",
@@ -44,6 +49,7 @@ func Ensure(name string, log *logx.Logger) (*Sink, error) {
 		if err != nil {
 			return nil, err
 		}
+		moduleID = parseModuleID(out)
 		if err := waitForMonitor(name, 2*time.Second); err != nil {
 			log.Warnf("output device created but its monitor is not visible yet: %v", err)
 		}
@@ -53,6 +59,7 @@ func Ensure(name string, log *logx.Logger) (*Sink, error) {
 		Name:          name,
 		MonitorSource: name + ".monitor",
 		Created:       !exists,
+		ModuleID:      moduleID,
 		log:           log,
 	}, nil
 }
@@ -66,6 +73,18 @@ func validateName(name string) error {
 
 func (s *Sink) Dispose() {
 	if !s.Created {
+		return
+	}
+
+	// Remove the module this process loaded. Falling back to a name search is
+	// only for the case where pactl did not report an index; that search can
+	// otherwise unload a module belonging to another instance.
+	if s.ModuleID > 0 {
+		if _, err := pactl("unload-module", strconv.Itoa(s.ModuleID)); err != nil {
+			s.log.Debugf("could not unload virtual sink module %d: %v", s.ModuleID, err)
+			return
+		}
+		s.log.Infof("removed virtual output %q", s.Name)
 		return
 	}
 
@@ -107,6 +126,15 @@ func waitForMonitor(name string, timeout time.Duration) error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+// parseModuleID extracts the module index that `pactl load-module` prints.
+func parseModuleID(out string) int {
+	id, err := strconv.Atoi(strings.TrimSpace(out))
+	if err != nil || id <= 0 {
+		return 0
+	}
+	return id
 }
 
 func sinkExists(name string) (bool, error) {
