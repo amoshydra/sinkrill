@@ -10,7 +10,7 @@ depends=('libpulse')
 optdepends=('ffmpeg: MP3 streaming mode')
 makedepends=('go')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('SKIP') # replace with `updpkgsums` output after the first release
+sha256sums=('56a0f53bd719622bf682e38ab5c0ccb564a7bec6321af5a813e5bd060bf53210')
 
 build() {
 	cd "$pkgname-$pkgver"
