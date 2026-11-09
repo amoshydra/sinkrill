@@ -36,6 +36,15 @@ func fakeParec(t *testing.T, body string) string {
 	return path
 }
 
+// pacedParec emits ~25 ms of 48 kHz stereo s16le per iteration. It deliberately
+// runs near real-time: an unthrottled /dev/zero source delivers 32 KiB reads,
+// which are larger than the hub's 125 ms per-client queue and get dropped,
+// so the test would be exercising a burst path that real capture never hits.
+func pacedParec(t *testing.T) string {
+	t.Helper()
+	return fakeParec(t, "while :; do head -c 4800 /dev/zero; sleep 0.02; done")
+}
+
 // TestRunServesAudio exercises the real wiring: capture process -> hub ->
 // HTTP server -> listener, with --no-tune so no speaker is needed. It is the
 // regression test for "the stream stops after a while".
@@ -56,7 +65,7 @@ func TestRunServesAudio(t *testing.T) {
 			Bitrate: 192,
 			Station: "Test Station",
 			Source:  "@DEFAULT_MONITOR@",
-			Parec:   fakeParec(t, "exec /bin/cat /dev/zero"),
+			Parec:   pacedParec(t),
 			FFmpeg:  "ffmpeg",
 			Volume:  -1,
 			Tune:    false,
@@ -104,7 +113,7 @@ func TestRunServesAudio(t *testing.T) {
 		t.Fatalf("stream status = %d", resp.StatusCode)
 	}
 
-	buf := make([]byte, 64*1024)
+	buf := make([]byte, 32*1024)
 	n, err := io.ReadFull(resp.Body, buf)
 	resp.Body.Close()
 	if err != nil && err != io.ErrUnexpectedEOF {
