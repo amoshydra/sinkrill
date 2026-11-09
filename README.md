@@ -109,6 +109,23 @@ sudo pacman -S libpulse          # ffmpeg is optional (MP3 mode)
 sudo apt install pulseaudio-utils
 ```
 
+### Platform support
+
+Sinkrill is **Linux-only** today. Sonos discovery, control, and HTTP streaming
+are already portable — audio capture is the part that is not.
+
+| Platform | Status |
+|-----------|--------|
+| Linux (PipeWire/PulseAudio) | **Supported** — `parec`, with `ffmpeg -f pulse` as a fallback |
+| Windows | Builds, but no capture backend yet. Needs WASAPI loopback. |
+| macOS | Builds, but no capture backend yet. Needs CoreAudio taps or a virtual device such as BlackHole. |
+| Android / Termux | Not viable. Android does not expose the system audio mix to apps; only `MediaProjection`, from inside a real APK, can capture playback. |
+
+On an unsupported platform the binary exits with a clear message rather than
+falling over later. A port needs one new file in
+[`internal/capture`](internal/capture) with a build tag and an entry in
+`platformBackends`; the capture hot path stays untouched.
+
 ## Install
 
 ### Binary (recommended)
