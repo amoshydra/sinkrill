@@ -200,6 +200,20 @@ func (c *Client) Muted(ctx context.Context) (bool, error) {
 	return strings.TrimSpace(parsed.Mute) == "1", nil
 }
 
+// SetMute mutes or unmutes the speaker.
+func (c *Client) SetMute(ctx context.Context, muted bool) error {
+	value := "0"
+	if muted {
+		value = "1"
+	}
+	_, err := c.call(ctx, renderingService, "SetMute", [][2]string{
+		{"InstanceID", "0"},
+		{"Channel", "Master"},
+		{"DesiredMute", value},
+	})
+	return err
+}
+
 func snippet(data []byte) string {
 	text := strings.Join(strings.Fields(string(data)), " ")
 	if len(text) > 300 {

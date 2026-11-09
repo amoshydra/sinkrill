@@ -2,10 +2,15 @@ package sink
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"strconv"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/amoshydra/sinkrill/internal/capture"
@@ -189,7 +194,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 		if vsink != nil {
 			vsink.Dispose()
 		}
-		return err
+		return describeListenError(opts, err)
 	}
 
 	var tuned atomic.Bool
@@ -363,4 +368,48 @@ func validate(opts Options) error {
 		return fmt.Errorf("bind address must not be empty")
 	}
 	return nil
+}
+
+// describeListenError turns "address already in use" into something actionable.
+// Re-running the command while a stream is live is the common case, so name the
+// instance and the commands that talk to it.
+func describeListenError(opts Options, err error) error {
+	if !errors.Is(err, syscall.EADDRINUSE) {
+		return err
+	}
+	if st, ok := statusOnPort(opts); ok {
+		room := "no room (--no-tune)"
+		if st.Device != nil {
+			room = fmt.Sprintf("%s (%s)", st.Device.Name, st.Device.IP)
+		}
+		return fmt.Errorf(
+			"sinkrill is already running on port %d: station %q, %s\n"+
+				"  control it:   sinkrill status | sinkrill volume 40 | sinkrill volume up\n"+
+				"  or run a second stream on a free port: --port 0",
+			opts.Port, st.Station, room,
+		)
+	}
+	return fmt.Errorf("port %d is already in use; pass --port 0 to pick a free one", opts.Port)
+}
+
+// statusOnPort asks a running instance on the same port who it is.
+func statusOnPort(opts Options) (*Status, bool) {
+	host := opts.Bind
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	client := &http.Client{Timeout: 700 * time.Millisecond}
+	resp, err := client.Get("http://" + net.JoinHostPort(host, strconv.Itoa(opts.Port)) + "/status")
+	if err != nil {
+		return nil, false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, false
+	}
+	var st Status
+	if err := json.NewDecoder(resp.Body).Decode(&st); err != nil {
+		return nil, false
+	}
+	return &st, true
 }

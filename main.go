@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"regexp"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -44,6 +46,10 @@ func run(argv []string) int {
 		return runDevices(args)
 	case "stop":
 		return runStop(args)
+	case "volume":
+		return runVolume(args)
+	case "status":
+		return runStatus(args)
 	case "probe":
 		return runProbe(args)
 	case "doctor":
@@ -58,7 +64,7 @@ func splitCommand(argv []string) (string, []string) {
 		return "start", nil
 	}
 	switch argv[0] {
-	case "start", "devices", "stop", "probe", "doctor", "version", "help":
+	case "start", "devices", "stop", "volume", "status", "probe", "doctor", "version", "help":
 		return argv[0], argv[1:]
 	case "-h", "--help":
 		return "help", nil
@@ -94,6 +100,8 @@ Usage:
   sinkrill                            Mirror the current output (no new device)
   sinkrill devices [options]          List Sonos devices on the LAN
   sinkrill stop [options]             Stop playback on a device
+  sinkrill volume [args]              Show or change the speaker volume
+  sinkrill status                     Show what the running instance is doing
   sinkrill doctor [options]           Diagnose silence, capture, and routing
   sinkrill probe [options]            Measure buffered latency
   sinkrill version                    Print the version
@@ -115,6 +123,13 @@ Options for start:
       --virtual-sink [name] Create the Sinkrill output device (recommended)
       --station <name>      Name shown on the speaker (default %q)
   -v, --verbose             Verbose logs
+
+Volume:
+  sinkrill volume                     Print the current volume
+  sinkrill volume 40                  Set it (0-100)
+  sinkrill volume +5 | up 10          Nudge it up
+  sinkrill volume -5 | down           Nudge it down
+  sinkrill volume mute | unmute
 
 Run "sinkrill <command> -h" for command-specific options.
 `, sink.DefaultStation())
@@ -244,6 +259,231 @@ func runStop(args []string) int {
 		return 1
 	}
 	log.Infof("stopped %s (%s)", resolved.Name, resolved.IP)
+	return 0
+}
+
+type volumeMode int
+
+const (
+	volumeShow volumeMode = iota
+	volumeSet
+	volumeDelta
+	volumeMute
+	volumeUnmute
+)
+
+// parseVolumeArgs interprets the positional arguments of `sinkrill volume`.
+func parseVolumeArgs(args []string) (volumeMode, int, error) {
+	if len(args) == 0 {
+		return volumeShow, 0, nil
+	}
+	if len(args) > 2 {
+		return 0, 0, fmt.Errorf("expected at most two arguments, got %d", len(args))
+	}
+
+	switch args[0] {
+	case "mute":
+		if len(args) != 1 {
+			return 0, 0, fmt.Errorf("mute takes no arguments")
+		}
+		return volumeMute, 0, nil
+	case "unmute":
+		if len(args) != 1 {
+			return 0, 0, fmt.Errorf("unmute takes no arguments")
+		}
+		return volumeUnmute, 0, nil
+	case "up", "down":
+		step := 5
+		if len(args) == 2 {
+			n, err := strconv.Atoi(args[1])
+			if err != nil || n <= 0 {
+				return 0, 0, fmt.Errorf("step must be a positive integer")
+			}
+			step = n
+		}
+		if args[0] == "down" {
+			step = -step
+		}
+		return volumeDelta, step, nil
+	}
+
+	v, err := strconv.Atoi(args[0])
+	if err != nil {
+		return 0, 0, fmt.Errorf("volume must be 0-100, +N, -N, up, down, mute, or unmute")
+	}
+	if strings.HasPrefix(args[0], "+") || strings.HasPrefix(args[0], "-") {
+		if len(args) != 1 {
+			return 0, 0, fmt.Errorf("a relative volume takes no extra arguments")
+		}
+		return volumeDelta, v, nil
+	}
+	if v < 0 || v > 100 {
+		return 0, 0, fmt.Errorf("volume must be between 0 and 100")
+	}
+	return volumeSet, v, nil
+}
+
+func clampVolume(v int) int {
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		return 100
+	}
+	return v
+}
+
+// localStatus reads /status from a running instance. It is used to reuse the
+// room that instance is already tuned to, instead of rediscovering it.
+func localStatus(port int) (*sink.Status, bool) {
+	client := &http.Client{Timeout: 700 * time.Millisecond}
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/status", port))
+	if err != nil {
+		return nil, false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, false
+	}
+	var st sink.Status
+	if err := json.NewDecoder(resp.Body).Decode(&st); err != nil {
+		return nil, false
+	}
+	return &st, true
+}
+
+// resolveTarget picks the room to act on: an explicit --device, else whatever
+// the running instance is tuned to, else discovery.
+func resolveTarget(ctx context.Context, device string, port int, log *logx.Logger) (sonos.Device, error) {
+	if device != "" {
+		return sonos.Resolve(ctx, device, 3*time.Second, log)
+	}
+	if st, ok := localStatus(port); ok && st.Device != nil {
+		return sonos.Device{Name: st.Device.Name, IP: st.Device.IP}, nil
+	}
+	return sonos.Resolve(ctx, "", 3*time.Second, log)
+}
+
+func runVolume(args []string) int {
+	fs := flag.NewFlagSet("volume", flag.ContinueOnError)
+	device := ""
+	port := 8567
+	strVar(fs, &device, "device", "d", "", "Sonos room name or IP")
+	intVar(fs, &port, "port", "p", port, "port of the running instance to read the room from")
+	verbose := boolVar(fs, nil, "verbose", "v", false, "verbose logging")
+
+	if code, ok := parseFlags(fs, args); !ok {
+		return code
+	}
+
+	log := logx.New(*verbose)
+	mode, value, err := parseVolumeArgs(fs.Args())
+	if err != nil {
+		log.Errorf("%v", err)
+		return 2
+	}
+
+	ctx, stop := signalContext()
+	defer stop()
+
+	dev, err := resolveTarget(ctx, device, port, log)
+	if err != nil {
+		log.Errorf("%v", err)
+		return 1
+	}
+	speaker := sonos.NewClient(dev.IP)
+
+	switch mode {
+	case volumeShow:
+		level, err := speaker.Volume(ctx)
+		if err != nil {
+			log.Errorf("%v", err)
+			return 1
+		}
+		line := fmt.Sprintf("%s: %d", dev.Name, level)
+		if muted, err := speaker.Muted(ctx); err == nil && muted {
+			line += " (muted)"
+		}
+		fmt.Println(line)
+
+	case volumeMute, volumeUnmute:
+		muted := mode == volumeMute
+		if err := speaker.SetMute(ctx, muted); err != nil {
+			log.Errorf("%v", err)
+			return 1
+		}
+		if muted {
+			log.Infof("%s muted", dev.Name)
+		} else {
+			log.Infof("%s unmuted", dev.Name)
+		}
+
+	case volumeSet:
+		if err := speaker.SetVolume(ctx, value); err != nil {
+			log.Errorf("%v", err)
+			return 1
+		}
+		log.Infof("%s volume: %d", dev.Name, value)
+
+	case volumeDelta:
+		current, err := speaker.Volume(ctx)
+		if err != nil {
+			log.Errorf("%v", err)
+			return 1
+		}
+		target := clampVolume(current + value)
+		if err := speaker.SetVolume(ctx, target); err != nil {
+			log.Errorf("%v", err)
+			return 1
+		}
+		log.Infof("%s volume: %d -> %d", dev.Name, current, target)
+	}
+	return 0
+}
+
+func runStatus(args []string) int {
+	fs := flag.NewFlagSet("status", flag.ContinueOnError)
+	port := 8567
+	intVar(fs, &port, "port", "p", port, "port of the running instance")
+	asJSON := fs.Bool("json", false, "print raw JSON")
+
+	if code, ok := parseFlags(fs, args); !ok {
+		return code
+	}
+
+	st, ok := localStatus(port)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "no sinkrill instance is listening on http://127.0.0.1:%d\n", port)
+		return 1
+	}
+
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(st)
+		return 0
+	}
+
+	room := "not tuned (--no-tune)"
+	if st.Device != nil {
+		room = fmt.Sprintf("%s (%s)", st.Device.Name, st.Device.IP)
+	}
+	capture := "running"
+	if !st.Capture.Running {
+		capture = "stopped"
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintf(w, "Room\t%s\n", room)
+	fmt.Fprintf(w, "Station\t%s\n", st.Station)
+	fmt.Fprintf(w, "Format\t%s (%d kbps)\n", st.Format, st.Bitrate)
+	fmt.Fprintf(w, "URI\t%s\n", st.URI)
+	fmt.Fprintf(w, "Capture\t%s, %d restarts, %d ms since data\n", capture, st.Capture.Restarts, st.Capture.LastDataMS)
+	if st.Capture.LastError != "" {
+		fmt.Fprintf(w, "Error\t%s\n", st.Capture.LastError)
+	}
+	fmt.Fprintf(w, "Listeners\t%d (%d B queued, %d dropped)\n", st.Listeners, st.QueuedBytes, st.DroppedChunks)
+	_ = w.Flush()
 	return 0
 }
 

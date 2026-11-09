@@ -197,6 +197,16 @@ sinkrill devices
 # Stop playback without starting a stream
 sinkrill stop "Living Room"
 
+# Volume, without touching the stream or restarting anything
+sinkrill volume                 # print it
+sinkrill volume 40              # set it
+sinkrill volume +5              # nudge up (also: up 10)
+sinkrill volume -5              # nudge down (also: down)
+sinkrill volume mute            # unmute to undo
+
+# What the running instance is doing
+sinkrill status
+
 # Serve only: prints the URL to paste into the Sonos app
 sinkrill --no-tune
 
@@ -206,6 +216,11 @@ sinkrill doctor
 # Capture a specific source instead of the default output
 sinkrill --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 ```
+
+Starting a second copy while a stream is live exits immediately and names the
+running instance, rather than printing a bare `bind: address already in use`.
+Use `sinkrill status` to inspect it, or `--port 0` to run another stream on a
+free port.
 
 ### Options
 
