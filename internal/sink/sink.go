@@ -88,74 +88,111 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 		return err
 	}
 
+	inst, err := newInstance(ctx, opts, log)
+	if err != nil {
+		return err
+	}
+	defer inst.close()
+
+	ready, err := inst.start(ctx)
+	if err != nil || !ready {
+		return err
+	}
+	if err := inst.tuneIn(ctx); err != nil {
+		return err
+	}
+	return inst.loop(ctx)
+}
+
+// instance is one running stream: the room it tunes, the source it captures,
+// the hub that fans audio out, and the HTTP server that serves it.
+//
+// Run only sequences the phases; each one lives here so it can be read on its
+// own and exercised by the end-to-end test.
+type instance struct {
+	opts   Options
+	log    *logx.Logger
+	lanIP  string
+	kbps   int
+	source string
+
+	device  *sonos.Device
+	speaker *sonos.Client
+	vsink   *virtualsink.Sink
+
+	hub    *stream.Hub
+	capt   *capture.Capture
+	server *stream.Server
+
+	mu            sync.RWMutex
+	uri           string
+	tuned         atomic.Bool
+	closeOnce     sync.Once
+	firstOnce     sync.Once
+	serverStarted bool
+
+	firstData chan struct{}
+	fatalCh   chan error
+	restartCh chan struct{}
+}
+
+func newInstance(ctx context.Context, opts Options, log *logx.Logger) (*instance, error) {
 	lanIP := opts.Host
 	if lanIP == "" {
 		lanIP = netutil.LANIP()
 	}
 	if lanIP == "" {
-		return errors.New("could not detect a LAN IPv4 address; pass --host <ip>")
+		return nil, errors.New("could not detect a LAN IPv4 address; pass --host <ip>")
 	}
 
-	var (
-		device  *sonos.Device
-		speaker *sonos.Client
-	)
+	inst := &instance{
+		opts:      opts,
+		log:       log,
+		lanIP:     lanIP,
+		kbps:      effectiveBitrate(opts.Format, opts.Bitrate),
+		source:    opts.Source,
+		firstData: make(chan struct{}),
+		fatalCh:   make(chan error, 1),
+		restartCh: make(chan struct{}, 1),
+	}
+
 	if opts.Tune {
 		resolved, err := sonos.Resolve(ctx, opts.Device, 3*time.Second, log)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		device = &resolved
-		speaker = sonos.NewClient(resolved.IP)
+		inst.device = &resolved
+		inst.speaker = sonos.NewClient(resolved.IP)
 	}
 
-	source := opts.Source
-	var vsink *virtualsink.Sink
 	if opts.VirtualSink != "" {
 		created, err := virtualsink.Ensure(opts.VirtualSink, log)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		vsink = created
-		source = created.MonitorSource
+		inst.vsink = created
+		inst.source = created.MonitorSource
 		if created.Created {
 			log.Infof("created output device %q (select it in your audio selector)", opts.VirtualSink)
 		} else {
 			log.Infof("using existing output device %q", opts.VirtualSink)
 		}
-	}
-
-	if opts.VirtualSink == "" {
-		what := source
-		if source == "@DEFAULT_MONITOR@" {
+	} else {
+		what := inst.source
+		if what == "@DEFAULT_MONITOR@" {
 			what = "the default output"
 		}
 		log.Infof("mirroring %s; no new audio device (use --virtual-sink for a selectable output)", what)
 	}
 
-	kbps := effectiveBitrate(opts.Format, opts.Bitrate)
-
-	hub := stream.NewHub(opts.WarmupMS, stream.BytesPerSecond(opts.Format, opts.Bitrate), log)
-
-	var stateMu sync.RWMutex
-	var uri string
-	getURI := func() string {
-		stateMu.RLock()
-		defer stateMu.RUnlock()
-		return uri
-	}
-	setURI := func(value string) {
-		stateMu.Lock()
-		uri = value
-		stateMu.Unlock()
-	}
+	inst.hub = stream.NewHub(opts.WarmupMS, stream.BytesPerSecond(opts.Format, opts.Bitrate), log)
 
 	captureFormat := capture.FormatMP3
 	if opts.Format == "wav" {
 		captureFormat = capture.FormatPCM
 	}
-	capt := capture.New(capture.Options{
-		Source:     source,
+	inst.capt = capture.New(capture.Options{
+		Source:     inst.source,
 		Format:     captureFormat,
 		Bitrate:    opts.Bitrate,
 		FFmpegPath: opts.FFmpeg,
@@ -163,199 +200,232 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 		Logger:     log,
 	})
 
-	statusFn := func() any {
-		snap := capt.Snapshot()
-		status := Status{
-			Station:       opts.Station,
-			Source:        source,
-			Format:        opts.Format,
-			Bitrate:       kbps,
-			URI:           getURI(),
-			WarmupMS:      opts.WarmupMS,
-			Listeners:     hub.Count(),
-			ListenerBytes: hub.TotalBytes(),
-			QueuedBytes:   hub.MaxQueuedBytes(),
-			DroppedChunks: hub.TotalDrops(),
-			Capture:       captureStatusAt(snap, time.Now()),
-		}
-		if device != nil {
-			status.Device = &DeviceStatus{Name: device.Name, IP: device.IP}
-		}
-		if vsink != nil {
-			status.VirtualSink = &VirtualSinkStatus{Name: vsink.Name, CreatedByUs: vsink.Created}
-		}
-		return status
-	}
-
-	server := stream.NewServer(stream.ServerOptions{
+	inst.server = stream.NewServer(stream.ServerOptions{
 		Port:    opts.Port,
 		Bind:    opts.Bind,
 		Format:  opts.Format,
 		Bitrate: opts.Bitrate,
 		Station: opts.Station,
-		Status:  statusFn,
+		Status:  inst.status,
 		Logger:  log,
-	}, hub)
+	}, inst.hub)
 
-	if err := server.Start(); err != nil {
-		if vsink != nil {
-			vsink.Dispose()
-		}
-		return describeListenError(opts, err)
+	return inst, nil
+}
+
+// status is the payload served on /status.
+func (i *instance) status() any {
+	snap := i.capt.Snapshot()
+	st := Status{
+		Station:       i.opts.Station,
+		Source:        i.source,
+		Format:        i.opts.Format,
+		Bitrate:       i.kbps,
+		URI:           i.getURI(),
+		WarmupMS:      i.opts.WarmupMS,
+		Listeners:     i.hub.Count(),
+		ListenerBytes: i.hub.TotalBytes(),
+		QueuedBytes:   i.hub.MaxQueuedBytes(),
+		DroppedChunks: i.hub.TotalDrops(),
+		Capture:       captureStatusAt(snap, time.Now()),
 	}
-
-	var tuned atomic.Bool
-	var cleanupOnce sync.Once
-	cleanup := func() {
-		cleanupOnce.Do(func() {
-			stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-
-			if speaker != nil && tuned.Load() {
-				// Another instance may have retuned the room since. Only stop
-				// the speaker if it is still playing this instance's stream.
-				current := ""
-				if pos, err := speaker.Position(stopCtx); err == nil {
-					current = pos.URI
-				}
-				if !shouldStopSpeaker(current, getURI()) {
-					log.Infof("left %s alone; it is playing another stream now", describeDevice(device))
-				} else if err := speaker.Stop(stopCtx); err != nil {
-					log.Debugf("could not stop speaker: %v", err)
-				} else if device != nil {
-					log.Infof("stopped playback on %s (%s)", device.Name, device.IP)
-				}
-			}
-			capt.Stop()
-			_ = server.Shutdown(stopCtx)
-			if vsink != nil {
-				vsink.Dispose()
-			}
-		})
+	if i.device != nil {
+		st.Device = &DeviceStatus{Name: i.device.Name, IP: i.device.IP}
 	}
-	defer cleanup()
+	if i.vsink != nil {
+		st.VirtualSink = &VirtualSinkStatus{Name: i.vsink.Name, CreatedByUs: i.vsink.Created}
+	}
+	return st
+}
 
-	firstData := make(chan struct{})
-	var firstOnce sync.Once
-	fatalCh := make(chan error, 1)
-	restartCh := make(chan struct{}, 1)
+func (i *instance) getURI() string {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.uri
+}
 
-	if err := capt.Start(ctx, capture.Callbacks{
+func (i *instance) setURI(value string) {
+	i.mu.Lock()
+	i.uri = value
+	i.mu.Unlock()
+}
+
+// start serves HTTP, launches capture, and waits for the first audio byte.
+// ready is false when ctx ended first, in which case there is nothing to tune.
+func (i *instance) start(ctx context.Context) (ready bool, err error) {
+	if err := i.server.Start(); err != nil {
+		return false, describeListenError(i.opts, err)
+	}
+	i.serverStarted = true
+
+	if err := i.capt.Start(ctx, capture.Callbacks{
 		OnData: func(chunk []byte) {
-			firstOnce.Do(func() { close(firstData) })
-			hub.Write(chunk)
+			i.firstOnce.Do(func() { close(i.firstData) })
+			i.hub.Write(chunk)
 		},
 		OnExit: func(err error) {
 			if err != nil {
-				log.Warnf("%v", err)
+				i.log.Warnf("%v", err)
 			}
 		},
 		OnRestart: func() {
 			select {
-			case restartCh <- struct{}{}:
+			case i.restartCh <- struct{}{}:
 			default:
 			}
 		},
 		OnFatal: func(err error) {
 			select {
-			case fatalCh <- err:
+			case i.fatalCh <- err:
 			default:
 			}
 		},
 	}); err != nil {
-		return err
+		return false, err
 	}
 
 	select {
-	case <-firstData:
-	case err := <-fatalCh:
-		return fmt.Errorf("capture failed: %w", err)
+	case <-i.firstData:
+	case err := <-i.fatalCh:
+		return false, fmt.Errorf("capture failed: %w", err)
 	case <-time.After(firstDataTimeout):
-		return errors.New(
+		return false, errors.New(
 			"no audio data arrived from the source; check that the PulseAudio/PipeWire " +
 				"source exists (try `pactl list short sources`) or pass --source",
 		)
 	case <-ctx.Done():
-		return nil
+		return false, nil
 	}
 
-	streamURI := sonos.StreamURI(lanIP, server.Port(), opts.Format)
-	setURI(streamURI)
-	log.Infof("advertised URI (%s): %s", opts.Format, streamURI)
+	i.advertise()
+	return true, nil
+}
+
+// advertise publishes the URI the speaker should pull, for /status and logs.
+func (i *instance) advertise() {
+	uri := sonos.StreamURI(i.lanIP, i.server.Port(), i.opts.Format)
+	i.setURI(uri)
+	i.log.Infof("advertised URI (%s): %s", i.opts.Format, uri)
+
 	file := "stream.mp3"
-	if opts.Format == "wav" {
+	if i.opts.Format == "wav" {
 		file = "stream.wav"
 	}
-	log.Infof("preview locally: http://%s:%d/%s", lanIP, server.Port(), file)
+	i.log.Infof("preview locally: http://%s:%d/%s", i.lanIP, i.server.Port(), file)
+}
 
-	metadata := sonos.RadioMetadata(opts.Station, "Sinkrill")
-	if opts.Format == "wav" {
-		metadata = sonos.WAVMetadata(opts.Station, streamURI, "Sinkrill")
+// metadata is the DIDL-Lite payload describing this stream.
+func (i *instance) metadata() string {
+	if i.opts.Format == "wav" {
+		return sonos.WAVMetadata(i.opts.Station, i.getURI(), "Sinkrill")
 	}
-	tune := func() error {
-		if speaker == nil {
-			return nil
-		}
-		if err := speaker.SetAVTransportURI(ctx, streamURI, metadata); err != nil {
-			return err
-		}
-		if err := speaker.Play(ctx); err != nil {
-			log.Debugf("play after tune-in failed: %v", err)
-		}
-		tuned.Store(true)
+	return sonos.RadioMetadata(i.opts.Station, "Sinkrill")
+}
+
+// tune points the speaker at this stream. Safe when there is no speaker.
+func (i *instance) tune(ctx context.Context) error {
+	if i.speaker == nil {
 		return nil
 	}
-
-	if speaker != nil && device != nil {
-		if opts.Volume >= 0 {
-			if err := speaker.SetVolume(ctx, opts.Volume); err != nil {
-				log.Warnf("could not set volume: %v", err)
-			} else {
-				log.Infof("set volume on %s to %d", device.Name, opts.Volume)
-			}
-		}
-		if err := tune(); err != nil {
-			return err
-		}
-		log.Infof("streaming PC audio to %s (%s)", device.Name, device.IP)
-	} else {
-		log.Infof("running without tuning Sonos (--no-tune); point a speaker at the URI above")
+	if err := i.speaker.SetAVTransportURI(ctx, i.getURI(), i.metadata()); err != nil {
+		return err
 	}
+	if err := i.speaker.Play(ctx); err != nil {
+		i.log.Debugf("play after tune-in failed: %v", err)
+	}
+	i.tuned.Store(true)
+	return nil
+}
 
+// tuneIn applies the startup volume and tunes, or explains --no-tune.
+func (i *instance) tuneIn(ctx context.Context) error {
+	if i.speaker == nil || i.device == nil {
+		i.log.Infof("running without tuning Sonos (--no-tune); point a speaker at the URI above")
+		return nil
+	}
+	if i.opts.Volume >= 0 {
+		if err := i.speaker.SetVolume(ctx, i.opts.Volume); err != nil {
+			i.log.Warnf("could not set volume: %v", err)
+		} else {
+			i.log.Infof("set volume on %s to %d", i.device.Name, i.opts.Volume)
+		}
+	}
+	if err := i.tune(ctx); err != nil {
+		return err
+	}
+	i.log.Infof("streaming PC audio to %s (%s)", i.device.Name, i.device.IP)
+	return nil
+}
+
+// loop services capture restarts and the keepalive check until ctx is done.
+func (i *instance) loop(ctx context.Context) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	var lastRetune time.Time
 
-	log.Infof("press Ctrl+C to stop")
+	i.log.Infof("press Ctrl+C to stop")
 	for {
 		select {
 		case <-ctx.Done():
-			log.Infof("shutting down")
+			i.log.Infof("shutting down")
 			return nil
 
-		case <-restartCh:
-			if speaker != nil && ctx.Err() == nil {
-				log.Infof("capture restarted; retuning speaker")
-				if err := tune(); err != nil {
-					log.Warnf("retune failed: %v", err)
+		case <-i.restartCh:
+			if i.speaker != nil && ctx.Err() == nil {
+				i.log.Infof("capture restarted; retuning speaker")
+				if err := i.tune(ctx); err != nil {
+					i.log.Warnf("retune failed: %v", err)
 				}
 			}
 
 		case <-ticker.C:
-			if !opts.Keepalive || speaker == nil || ctx.Err() != nil {
+			if !i.opts.Keepalive || i.speaker == nil || ctx.Err() != nil {
 				continue
 			}
-			state, err := speaker.TransportState(ctx)
+			state, err := i.speaker.TransportState(ctx)
 			if err != nil || !shouldRetune(state, time.Since(lastRetune)) {
 				continue
 			}
 			lastRetune = time.Now()
-			log.Infof("speaker stopped unexpectedly; retuning (keepalive)")
-			if err := tune(); err != nil {
-				log.Warnf("keepalive retune failed: %v", err)
+			i.log.Infof("speaker stopped unexpectedly; retuning (keepalive)")
+			if err := i.tune(ctx); err != nil {
+				i.log.Warnf("keepalive retune failed: %v", err)
 			}
 		}
 	}
+}
+
+// close releases everything, in an order that does not leave a room pointing
+// at a dead stream or a stale virtual sink behind.
+func (i *instance) close() {
+	i.closeOnce.Do(func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if i.speaker != nil && i.tuned.Load() {
+			// Another instance may have retuned the room since. Only stop the
+			// speaker if it is still playing this instance's stream.
+			current := ""
+			if pos, err := i.speaker.Position(stopCtx); err == nil {
+				current = pos.URI
+			}
+			if !shouldStopSpeaker(current, i.getURI()) {
+				i.log.Infof("left %s alone; it is playing another stream now", describeDevice(i.device))
+			} else if err := i.speaker.Stop(stopCtx); err != nil {
+				i.log.Debugf("could not stop speaker: %v", err)
+			} else if i.device != nil {
+				i.log.Infof("stopped playback on %s (%s)", i.device.Name, i.device.IP)
+			}
+		}
+
+		i.capt.Stop()
+		if i.serverStarted {
+			_ = i.server.Shutdown(stopCtx)
+		}
+		if i.vsink != nil {
+			i.vsink.Dispose()
+		}
+	})
 }
 
 func validate(opts Options) error {

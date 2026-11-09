@@ -4,6 +4,7 @@ package sink
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -76,6 +77,7 @@ func TestRunServesAudio(t *testing.T) {
 
 	// Wait for the server to answer /status.
 	deadline := time.Now().Add(10 * time.Second)
+	var status Status
 	ready := false
 	for time.Now().Before(deadline) {
 		select {
@@ -85,9 +87,11 @@ func TestRunServesAudio(t *testing.T) {
 		}
 		resp, err := client.Get(base + "/status")
 		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
+			if resp.StatusCode == http.StatusOK && json.NewDecoder(resp.Body).Decode(&status) == nil {
 				ready = true
+			}
+			resp.Body.Close()
+			if ready {
 				break
 			}
 		}
@@ -95,6 +99,23 @@ func TestRunServesAudio(t *testing.T) {
 	}
 	if !ready {
 		t.Fatal("server did not become ready")
+	}
+
+	// The status payload is what `sinkrill status` renders.
+	if status.Station != "Test Station" {
+		t.Errorf("status station = %q, want %q", status.Station, "Test Station")
+	}
+	if status.Format != "wav" || status.Bitrate != 1536 {
+		t.Errorf("status format = %q at %d kbps, want wav at 1536", status.Format, status.Bitrate)
+	}
+	if status.URI == "" {
+		t.Error("status URI is empty; advertise did not run")
+	}
+	if status.Source != "@DEFAULT_MONITOR@" {
+		t.Errorf("status source = %q", status.Source)
+	}
+	if !status.Capture.Running {
+		t.Error("status says capture is not running")
 	}
 
 	// The endpoint must deliver audio promptly.
