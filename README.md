@@ -204,6 +204,9 @@ sinkrill volume +5              # nudge up (also: up 10)
 sinkrill volume -5              # nudge down (also: down)
 sinkrill volume mute            # unmute to undo
 
+# Point the speaker back at the running stream (manual keepalive)
+sinkrill retune
+
 # What the running instance is doing
 sinkrill status
 
@@ -325,10 +328,11 @@ process, removes the virtual device, and exits.
 | What | How |
 |------|-----|
 | Start / stop | `sinkrill --virtual-sink` / `Ctrl+C` (or `sinkrill stop "Living Room"`) |
-| Volume | Sonos app, or `--volume 40` on start |
+| Volume | `sinkrill volume 40` while running, `sinkrill volume +5` / `mute`, or `--volume 40` on start |
+| Re-tune | `sinkrill retune` — points the room back at the running stream, e.g. after another device took it |
 | Pause / resume | Sonos app; long pauses may drop the stream connection, then restart `sinkrill` (or run with `--keepalive`) |
 | Change room | stop, then `sinkrill "Other Room" --virtual-sink` |
-| Inspect | `curl http://<lan-ip>:8567/status` |
+| Inspect | `sinkrill status` (or `curl http://<lan-ip>:8567/status`) |
 | Preview | open `http://<lan-ip>:8567/stream.wav` in VLC or a browser |
 
 ## Run as a user service

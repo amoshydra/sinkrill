@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseVolumeArgs(t *testing.T) {
 	tests := []struct {
@@ -52,5 +55,22 @@ func TestClampVolume(t *testing.T) {
 		if got := clampVolume(in); got != want {
 			t.Errorf("clampVolume(%d) = %d, want %d", in, got, want)
 		}
+	}
+}
+
+func TestStreamMetadata(t *testing.T) {
+	uri := "http://192.168.0.29:8567/stream.wav"
+
+	wav := streamMetadata("wav", "homedesktop streaming audio", uri)
+	if !strings.Contains(wav, "<dc:title>homedesktop streaming audio</dc:title>") {
+		t.Errorf("wav metadata is missing the station title:\n%s", wav)
+	}
+	if !strings.Contains(wav, "audio/wav") || !strings.Contains(wav, uri) {
+		t.Errorf("wav metadata should reference the stream URI:\n%s", wav)
+	}
+
+	mp3 := streamMetadata("mp3", "homedesktop streaming audio", "http://192.168.0.29:8567/stream.mp3")
+	if !strings.Contains(mp3, "audioBroadcast") {
+		t.Errorf("mp3 metadata should be an audio broadcast:\n%s", mp3)
 	}
 }

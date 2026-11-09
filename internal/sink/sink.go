@@ -410,7 +410,7 @@ func describeListenError(opts Options, err error) error {
 		}
 		return fmt.Errorf(
 			"sinkrill is already running on port %d: station %q, %s\n"+
-				"  control it:   sinkrill status | sinkrill volume 40 | sinkrill volume up\n"+
+				"  control it:   sinkrill status | sinkrill volume 40 | sinkrill retune\n"+
 				"  or run a second stream on a free port: --port 0",
 			opts.Port, st.Station, room,
 		)

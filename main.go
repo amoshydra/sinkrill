@@ -48,6 +48,8 @@ func run(argv []string) int {
 		return runStop(args)
 	case "volume":
 		return runVolume(args)
+	case "retune":
+		return runRetune(args)
 	case "status":
 		return runStatus(args)
 	case "probe":
@@ -64,7 +66,7 @@ func splitCommand(argv []string) (string, []string) {
 		return "start", nil
 	}
 	switch argv[0] {
-	case "start", "devices", "stop", "volume", "status", "probe", "doctor", "version", "help":
+	case "start", "devices", "stop", "volume", "retune", "status", "probe", "doctor", "version", "help":
 		return argv[0], argv[1:]
 	case "-h", "--help":
 		return "help", nil
@@ -101,6 +103,7 @@ Usage:
   sinkrill devices [options]          List Sonos devices on the LAN
   sinkrill stop [options]             Stop playback on a device
   sinkrill volume [args]              Show or change the speaker volume
+  sinkrill retune [options]           Point the speaker back at the running stream
   sinkrill status                     Show what the running instance is doing
   sinkrill doctor [options]           Diagnose silence, capture, and routing
   sinkrill probe [options]            Measure buffered latency
@@ -443,6 +446,72 @@ func runVolume(args []string) int {
 		}
 		log.Infof("%s volume: %d -> %d", dev.Name, current, target)
 	}
+	return 0
+}
+
+// streamMetadata rebuilds the DIDL-Lite payload the running instance used, so
+// a manual retune looks identical to the original tune-in.
+func streamMetadata(format, station, uri string) string {
+	if format == "wav" {
+		return sonos.WAVMetadata(station, uri, "Sinkrill")
+	}
+	return sonos.RadioMetadata(station, "Sinkrill")
+}
+
+// runRetune points a speaker back at an already running stream. It is the
+// manual equivalent of --keepalive.
+func runRetune(args []string) int {
+	fs := flag.NewFlagSet("retune", flag.ContinueOnError)
+	device := ""
+	port := 8567
+	strVar(fs, &device, "device", "d", "", "Sonos room name or IP")
+	intVar(fs, &port, "port", "p", port, "port of the running instance")
+	verbose := boolVar(fs, nil, "verbose", "v", false, "verbose logging")
+
+	if code, ok := parseFlags(fs, args); !ok {
+		return code
+	}
+
+	log := logx.New(*verbose)
+	st, ok := localStatus(port)
+	if !ok {
+		log.Errorf("no sinkrill instance is listening on port %d; start one with `sinkrill --virtual-sink`", port)
+		return 1
+	}
+	if st.URI == "" {
+		log.Errorf("the running instance has not advertised a stream yet; check `sinkrill status`")
+		return 1
+	}
+
+	ctx, stop := signalContext()
+	defer stop()
+
+	var target sonos.Device
+	switch {
+	case device != "":
+		resolved, err := sonos.Resolve(ctx, device, 3*time.Second, log)
+		if err != nil {
+			log.Errorf("%v", err)
+			return 1
+		}
+		target = resolved
+	case st.Device != nil:
+		target = sonos.Device{Name: st.Device.Name, IP: st.Device.IP}
+	default:
+		log.Errorf("the running instance is not tuned to a room (started with --no-tune); pass --device")
+		return 1
+	}
+
+	speaker := sonos.NewClient(target.IP)
+	if err := speaker.SetAVTransportURI(ctx, st.URI, streamMetadata(st.Format, st.Station, st.URI)); err != nil {
+		log.Errorf("%v", err)
+		return 1
+	}
+	if err := speaker.Play(ctx); err != nil {
+		log.Errorf("%v", err)
+		return 1
+	}
+	log.Infof("%s (%s) now playing %s", target.Name, target.IP, st.URI)
 	return 0
 }
 
