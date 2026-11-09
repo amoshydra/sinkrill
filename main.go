@@ -86,7 +86,7 @@ func resolveVersion() {
 }
 
 func printHelp() {
-	fmt.Print(`sinkrill — stream this computer's audio to Sonos speakers
+	fmt.Printf(`sinkrill — stream this computer's audio to Sonos speakers
 
 Usage:
   sinkrill --virtual-sink             Add a "Sinkrill" output device (recommended)
@@ -113,11 +113,11 @@ Options for start:
       --keepalive           Re-tune Sonos if it stops by itself
       --no-tune             Only serve the stream; do not control Sonos
       --virtual-sink [name] Create the Sinkrill output device (recommended)
-      --station <name>      Name shown on the speaker (default "Sinkrill")
+      --station <name>      Name shown on the speaker (default %q)
   -v, --verbose             Verbose logs
 
 Run "sinkrill <command> -h" for command-specific options.
-`)
+`, sink.DefaultStation())
 }
 
 func runStart(args []string) int {
@@ -133,7 +133,7 @@ func runStart(args []string) int {
 		Parec:    "parec",
 		Volume:   -1,
 		Tune:     true,
-		Station:  "Sinkrill",
+		Station:  sink.DefaultStation(),
 		WarmupMS: 0,
 	}
 	var virtualSink optionalString
@@ -280,7 +280,7 @@ func runProbe(args []string) int {
 		FFmpeg:  "ffmpeg",
 		Parec:   "parec",
 		Seconds: 30,
-		Station: "Sinkrill Probe",
+		Station: sink.DefaultStation() + " (probe)",
 	}
 
 	fs := flag.NewFlagSet("probe", flag.ContinueOnError)

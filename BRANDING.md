@@ -56,7 +56,7 @@ Calm, precise, and warm. It is a system daemon, not a lifestyle app.
 | systemd user unit | `sinkrill.service` |
 | AUR package | `sinkrill` |
 | Virtual output device | **Sinkrill** (`sinkrill` sink, `sinkrill.monitor`) |
-| Default station name | `Sinkrill` |
+| Default station name | `<hostname> streaming audio` (e.g. `homedesktop streaming audio`) |
 | Latency probe | `sinkrill probe` |
 
 ## Logo

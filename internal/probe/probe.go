@@ -121,9 +121,9 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 	}
 
 	uri := sonos.StreamURI(lanIP, server.Port(), opts.Format)
-	metadata := sonos.RadioMetadata(opts.Station, "sinkrill")
+	metadata := sonos.RadioMetadata(opts.Station, "Sinkrill")
 	if opts.Format == "wav" {
-		metadata = sonos.WAVMetadata(opts.Station, uri, "sinkrill")
+		metadata = sonos.WAVMetadata(opts.Station, uri, "Sinkrill")
 	}
 	tuneStart := time.Now()
 	if err := speaker.SetAVTransportURI(ctx, uri, metadata); err != nil {

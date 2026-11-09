@@ -268,9 +268,9 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 	}
 	log.Infof("preview locally: http://%s:%d/%s", lanIP, server.Port(), file)
 
-	metadata := sonos.RadioMetadata(opts.Station, "sinkrill")
+	metadata := sonos.RadioMetadata(opts.Station, "Sinkrill")
 	if opts.Format == "wav" {
-		metadata = sonos.WAVMetadata(opts.Station, streamURI, "sinkrill")
+		metadata = sonos.WAVMetadata(opts.Station, streamURI, "Sinkrill")
 	}
 	tune := func() error {
 		if speaker == nil {

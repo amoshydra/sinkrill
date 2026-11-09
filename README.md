@@ -225,7 +225,7 @@ sinkrill --source alsa_output.usb-Generic_USB_Audio-00.analog-stereo.monitor
 | `--keepalive` | off | Re-tune if the speaker stops by itself |
 | `--no-tune` | off | Don't control Sonos; only serve the stream |
 | `--virtual-sink [name]` | off | Create the **Sinkrill** output device (recommended); default name `sinkrill` |
-| `--station <name>` | `Sinkrill` | Name shown on the speaker |
+| `--station <name>` | `<hostname> streaming audio` | Name shown on the speaker |
 | `-v, --verbose` | off | Verbose logs |
 
 ### HTTP endpoints
