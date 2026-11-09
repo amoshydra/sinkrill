@@ -64,15 +64,20 @@ want the room to hear what the PC is playing.
 ## How it works
 
 ```
-┌──────────────┐  PipeWire/PulseAudio  ┌───────────────┐  WAV/PCM over HTTP  ┌──────────┐
-│  PC audio    │ ────────────────────► │    parec      │ ──────────────────► │  Sonos   │
-│ (any app)    │  monitor source       │ s16le 48 kHz  │  ~1.5 Mbps          │ speaker  │
-└──────────────┘                       └───────┬───────┘                     └────▲─────┘
-                                               │                                  │
-                                       ┌───────▼────────┐      http:// (file)      │
-                                       │ stream server  │─────────────────────────┘
-                                       │ /stream.wav    │   SetAVTransportURI
-                                       └────────────────┘
+                     PipeWire/PulseAudio
+ +---------------+                          +---------------+
+ |   PC audio    | -----------------------> |     parec     |
+ |   (any app)   |      monitor source      |  s16le 48kHz  |
+ +---------------+                          +-------+-------+
+                                                    |
+                                                    |  WAV/PCM over HTTP
+                                                    |  ~1.5 Mbps
+                                                    |
+ +---------------+                          +-------+-------+
+ |     Sonos     |      http:// (file)      | stream server |
+ |    speaker    |<-----------------------  |  /stream.wav  |
+ +---------------+                          +---------------+
+                      SetAVTransportURI
 ```
 
 1. `parec` records the monitor of your current audio output
