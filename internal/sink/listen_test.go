@@ -120,8 +120,28 @@ func TestCheckPortFreeRejectsForeignJSON(t *testing.T) {
 	}
 }
 
+// TestIsAddrInUse exercises the platform-specific errno check. It runs on the
+// Windows CI runner too, which is the only way to prove the Winsock value.
+func TestIsAddrInUse(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	_, second := net.Listen("tcp", l.Addr().String())
+	if second == nil {
+		t.Fatal("expected the second bind to fail")
+	}
+	if !isAddrInUse(second) {
+		t.Fatalf("isAddrInUse(%v) = false, want true", second)
+	}
+	if isAddrInUse(errors.New("boom")) {
+		t.Fatal("a plain error must not be reported as a port clash")
+	}
+}
+
 func TestCheckPortFreeOnFreePort(t *testing.T) {
-	// Grab a free port, release it, then preflight it.
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)

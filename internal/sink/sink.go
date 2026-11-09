@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/amoshydra/sinkrill/internal/capture"
@@ -470,7 +469,7 @@ func checkPortFree(opts Options) error {
 // Re-running the command while a stream is live is the common case, so name the
 // instance and the commands that talk to it.
 func describeListenError(opts Options, err error) error {
-	if !errors.Is(err, syscall.EADDRINUSE) {
+	if !isAddrInUse(err) {
 		return err
 	}
 	if st, ok := statusOnPort(opts); ok {
