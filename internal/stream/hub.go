@@ -29,15 +29,44 @@ type Client struct {
 	sent      atomic.Int64
 }
 
+// frameAlign is the on-wire frame size for 16-bit stereo, the format the hub
+// streams. Trimming an oversized chunk has to drop a multiple of this,
+// otherwise every later sample lands in the wrong channel. MP3 chunks are
+// byte-oriented and nowhere near the queue limit, so aligning them too is
+// harmless.
+const frameAlign = 4
+
+// tail returns the newest slice of chunk that fits within limit, dropping a
+// whole number of frames from the front.
+func tail(chunk []byte, limit int) []byte {
+	if len(chunk) <= limit {
+		return chunk
+	}
+	drop := len(chunk) - limit
+	if rem := drop % frameAlign; rem != 0 {
+		drop += frameAlign - rem
+	}
+	if drop > len(chunk) {
+		drop = len(chunk)
+	}
+	return chunk[drop:]
+}
+
 // push enqueues a chunk, dropping the oldest audio when the client falls
 // behind. Live audio must never accumulate: a slow listener should skip, not
 // drift seconds behind.
 func (c *Client) push(chunk []byte) {
+	// A chunk larger than the entire queue used to be discarded outright,
+	// which opened a silent gap up to a full queue long. Keep its tail -- the
+	// most recent audio -- and only record that the listener fell behind.
+	oversized := len(chunk) > c.maxQueued
+	if oversized {
+		chunk = tail(chunk, c.maxQueued)
+	}
+
 	c.mu.Lock()
-	if len(chunk) > c.maxQueued {
+	if oversized {
 		c.drops++
-		c.mu.Unlock()
-		return
 	}
 	for len(c.queue) > 0 && c.queuedBytes+len(chunk) > c.maxQueued {
 		c.queuedBytes -= len(c.queue[0])
