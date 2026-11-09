@@ -30,3 +30,28 @@ jobs:
 
       - name: Build
         run: CGO_ENABLED=0 go build -trimpath -o /tmp/sinkrill .
+
+  # The capture layer is build-tagged per platform. This keeps the non-Linux
+  # paths compiling even though they cannot be run here.
+  cross:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: windows, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: freebsd, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: true
+
+      - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: CGO_ENABLED=0 go build -trimpath -o /tmp/sinkrill .
