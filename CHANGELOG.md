@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0](https://github.com/amoshydra/sinkrill/compare/v0.2.1...v0.3.0) (2026-11-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* the default station name is no longer "Sinkrill". Anything matching on the old default (a Sonos favourite, a saved playlist, or a script reading /status) will see the new name.
+
+### Features
+
+* add `sinkrill retune` as the manual keepalive ([d21e410](https://github.com/amoshydra/sinkrill/commit/d21e410c5cf10941d33d3324c6e3db116b8f3b9e))
+* add volume and status commands, explain port clashes ([1d9634a](https://github.com/amoshydra/sinkrill/commit/1d9634a9119ddf825b9a9fcef923c15cec55bbc1))
+* name the stream after the machine by default ([a6fbcd9](https://github.com/amoshydra/sinkrill/commit/a6fbcd9c22a4b0626392889a3a9cd5ee509d98eb))
+
+
+### Bug Fixes
+
+* check the port before discovering speakers ([f08efa6](https://github.com/amoshydra/sinkrill/commit/f08efa6103a8ae6896600b9120b3dfe70f605987))
+* detect address-in-use on windows ([8358264](https://github.com/amoshydra/sinkrill/commit/8358264380ca840251fe210e4ef538390dff8be2))
+* do not let a second instance silence the first ([d548207](https://github.com/amoshydra/sinkrill/commit/d5482070e95e065266690a1d1f5ade3a173e23c2))
+* don't mistake another JSON service for a running instance ([5d19a37](https://github.com/amoshydra/sinkrill/commit/5d19a3789a4ff5719d3eb2670bbe4b50eefb9760))
+
 ## [0.2.1](https://github.com/amoshydra/sinkrill/compare/v0.2.0...v0.2.1) (2026-11-09)
 
 
