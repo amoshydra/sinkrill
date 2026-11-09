@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -122,10 +121,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 		log.Infof("mirroring %s; no new audio device (use --virtual-sink for a selectable output)", what)
 	}
 
-	kbps := opts.Bitrate
-	if opts.Format == "wav" {
-		kbps = 1536
-	}
+	kbps := effectiveBitrate(opts.Format, opts.Bitrate)
 
 	hub := stream.NewHub(opts.WarmupMS, stream.BytesPerSecond(opts.Format, opts.Bitrate), log)
 
@@ -157,17 +153,6 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 
 	statusFn := func() any {
 		snap := capt.Snapshot()
-		var lastDataMS int64
-		stalled := false
-		if snap.Running && !snap.LastDataAt.IsZero() {
-			age := time.Since(snap.LastDataAt)
-			lastDataMS = age.Milliseconds()
-			timeout := snap.StallTimeout
-			if timeout == 0 {
-				timeout = 5 * time.Second
-			}
-			stalled = age > timeout
-		}
 		status := Status{
 			Station:       opts.Station,
 			Source:        source,
@@ -179,14 +164,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 			ListenerBytes: hub.TotalBytes(),
 			QueuedBytes:   hub.MaxQueuedBytes(),
 			DroppedChunks: hub.TotalDrops(),
-			Capture: CaptureStatus{
-				Running:    snap.Running,
-				Restarts:   snap.Restarts,
-				UptimeMS:   snap.Uptime.Milliseconds(),
-				LastDataMS: lastDataMS,
-				Stalled:    stalled,
-				LastError:  snap.LastError,
-			},
+			Capture:       captureStatusAt(snap, time.Now()),
 		}
 		if device != nil {
 			status.Device = &DeviceStatus{Name: device.Name, IP: device.IP}
@@ -348,10 +326,7 @@ func Run(ctx context.Context, opts Options, log *logx.Logger) error {
 				continue
 			}
 			state, err := speaker.TransportState(ctx)
-			if err != nil || !strings.EqualFold(state, "STOPPED") {
-				continue
-			}
-			if time.Since(lastRetune) < 20*time.Second {
+			if err != nil || !shouldRetune(state, time.Since(lastRetune)) {
 				continue
 			}
 			lastRetune = time.Now()
