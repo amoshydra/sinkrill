@@ -287,8 +287,12 @@ wired-grade path; if you need the absolute minimum:
 `--format mp3` is the fallback for weak Wi-Fi or very old speakers: ~192 kbps
 instead of ~1.5 Mbps, at the cost of Sonos's radio buffer.
 
-WAV mode advertises a 4 GB "file", so after roughly 6 hours of playback the
-speaker may stop. `--keepalive` re-tunes automatically.
+WAV is a RIFF container with 32-bit size fields, so the header can only
+advertise a 4 GB stream — about **6 h 12 min** at 192 kB/s. When the speaker
+reaches that length it treats the track as finished and stops; the stream is
+still running. `--keepalive` re-tunes within ~20 s, or run `sinkrill retune`
+to restart the clock. MP3 mode uses a radio scheme with no length at all, so
+it has no such horizon.
 
 ## Output device mode (recommended)
 
