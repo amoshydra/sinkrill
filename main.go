@@ -16,11 +16,13 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/amoshydra/sinkrill/internal/capture"
 	"github.com/amoshydra/sinkrill/internal/doctor"
 	"github.com/amoshydra/sinkrill/internal/logx"
 	"github.com/amoshydra/sinkrill/internal/probe"
 	"github.com/amoshydra/sinkrill/internal/sink"
 	"github.com/amoshydra/sinkrill/internal/sonos"
+	"github.com/amoshydra/sinkrill/internal/virtualsink"
 )
 
 // version is set by the release build (-ldflags "-X main.version=...").
@@ -50,6 +52,8 @@ func run(argv []string) int {
 		return runVolume(args)
 	case "retune":
 		return runRetune(args)
+	case "cleanup":
+		return runCleanup(args)
 	case "status":
 		return runStatus(args)
 	case "probe":
@@ -66,7 +70,7 @@ func splitCommand(argv []string) (string, []string) {
 		return "start", nil
 	}
 	switch argv[0] {
-	case "start", "devices", "stop", "volume", "retune", "status", "probe", "doctor", "version", "help":
+	case "start", "devices", "stop", "volume", "retune", "cleanup", "status", "probe", "doctor", "version", "help":
 		return argv[0], argv[1:]
 	case "-h", "--help":
 		return "help", nil
@@ -104,6 +108,7 @@ Usage:
   sinkrill stop [options]             Stop playback on a device
   sinkrill volume [args]              Show or change the speaker volume
   sinkrill retune [options]           Point the speaker back at the running stream
+  sinkrill cleanup                    Remove a leftover output device after a crash
   sinkrill status                     Show what the running instance is doing
   sinkrill doctor [options]           Diagnose silence, capture, and routing
   sinkrill probe [options]            Measure buffered latency
@@ -512,6 +517,49 @@ func runRetune(args []string) int {
 		return 1
 	}
 	log.Infof("%s (%s) now playing %s", target.Name, target.IP, st.URI)
+	return 0
+}
+
+// runCleanup clears what a hard kill leaves behind: the null sink and the
+// capture process that was still attached to its monitor.
+func runCleanup(args []string) int {
+	fs := flag.NewFlagSet("cleanup", flag.ContinueOnError)
+	name := "sinkrill"
+	port := 8567
+	strVar(fs, &name, "virtual-sink", "", "sinkrill", "sink name to remove")
+	intVar(fs, &port, "port", "p", port, "port to check for a running instance")
+	verbose := boolVar(fs, nil, "verbose", "v", false, "verbose logging")
+
+	if code, ok := parseFlags(fs, args); !ok {
+		return code
+	}
+
+	log := logx.New(*verbose)
+	// Only refuse if the running instance is using the sink we are about to
+	// remove. Another instance on a different sink is none of our business.
+	if st, ok := localStatus(port); ok && st.VirtualSink != nil && st.VirtualSink.Name == name {
+		log.Errorf("a sinkrill instance on port %d is using %q; stop it before cleaning up", port, name)
+		return 1
+	}
+
+	// Kill the readers first so the module can be unloaded cleanly.
+	stopped := capture.KillStraySinkReaders(name)
+	if stopped > 0 {
+		log.Infof("stopped %d leftover capture process(es)", stopped)
+	}
+
+	removed, err := virtualsink.Remove(name)
+	if err != nil {
+		log.Errorf("%v", err)
+		return 1
+	}
+	if !removed {
+		if stopped == 0 {
+			log.Infof("nothing to clean up for %q", name)
+		}
+		return 0
+	}
+	log.Infof("removed leftover output device %q", name)
 	return 0
 }
 

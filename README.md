@@ -334,6 +334,7 @@ process, removes the virtual device, and exits.
 | Start / stop | `sinkrill --virtual-sink` / `Ctrl+C` (or `sinkrill stop "Living Room"`) |
 | Volume | `sinkrill volume 40` while running, `sinkrill volume +5` / `mute`, or `--volume 40` on start |
 | Re-tune | `sinkrill retune` — points the room back at the running stream, e.g. after another device took it |
+| Leftovers | `sinkrill cleanup` — removes the output device and stray capture process after a `kill -9` or crash |
 | Pause / resume | Sonos app; long pauses may drop the stream connection, then restart `sinkrill` (or run with `--keepalive`) |
 | Change room | stop, then `sinkrill "Other Room" --virtual-sink` |
 | Inspect | `sinkrill status` (or `curl http://<lan-ip>:8567/status`) |
@@ -408,6 +409,21 @@ that is not a Sinkrill or device error. If the tone is silent on the speaker, ru
 `sinkrill doctor` again.
 
 ## Troubleshooting
+
+**The "Sinkrill" output device is still in my audio settings**
+
+That happens when sinkrill was killed with `SIGKILL` or crashed, so its cleanup
+never ran: the null sink and the capture process attached to it both survive.
+A later run finds the sink already there and leaves it alone, because it did
+not create it.
+
+```bash
+sinkrill cleanup
+```
+
+That stops any stray capture process for the device and unloads the sink. It
+refuses while a running instance is actually using that device. `Ctrl+C` and
+`SIGTERM` both clean up properly, so this is only needed after a hard kill.
 
 **No Sonos devices found**
 

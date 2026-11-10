@@ -77,8 +77,7 @@ func (s *Sink) Dispose() {
 	}
 
 	// Remove the module this process loaded. Falling back to a name search is
-	// only for the case where pactl did not report an index; that search can
-	// otherwise unload a module belonging to another instance.
+	// only for the case where pactl did not report an index.
 	if s.ModuleID > 0 {
 		if _, err := pactl("unload-module", strconv.Itoa(s.ModuleID)); err != nil {
 			s.log.Debugf("could not unload virtual sink module %d: %v", s.ModuleID, err)
@@ -87,25 +86,45 @@ func (s *Sink) Dispose() {
 		s.log.Infof("removed virtual output %q", s.Name)
 		return
 	}
+	if removed, err := Remove(s.Name); err != nil {
+		s.log.Debugf("could not unload virtual sink: %v", err)
+	} else if removed {
+		s.log.Infof("removed virtual output %q", s.Name)
+	}
+}
 
+// Remove unloads every null-sink module whose arguments set sink_name to name.
+// It reports whether anything was unloaded, and is used to clear a sink left
+// behind when a previous process was killed before it could clean up.
+func Remove(name string) (bool, error) {
 	out, err := pactl("list", "short", "modules")
 	if err != nil {
-		s.log.Debugf("could not list pactl modules: %v", err)
-		return
+		return false, err
 	}
 
+	removed := false
 	for _, line := range strings.Split(out, "\n") {
 		fields := strings.Split(line, "\t")
-		if len(fields) < 3 || !strings.Contains(fields[2], "sink_name="+s.Name) {
+		if len(fields) < 3 || !ownsSink(fields[2], name) {
 			continue
 		}
 		if _, err := pactl("unload-module", fields[0]); err != nil {
-			s.log.Debugf("could not unload virtual sink: %v", err)
-			return
+			return removed, err
 		}
-		s.log.Infof("removed virtual output %q", s.Name)
-		return
+		removed = true
 	}
+	return removed, nil
+}
+
+// ownsSink matches the whole sink_name argument, so "sinkrill" does not also
+// match "sinkrill2".
+func ownsSink(moduleArgs, name string) bool {
+	for _, field := range strings.Fields(moduleArgs) {
+		if field == "sink_name="+name {
+			return true
+		}
+	}
+	return false
 }
 
 func waitForMonitor(name string, timeout time.Duration) error {
