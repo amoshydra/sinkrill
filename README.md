@@ -61,6 +61,11 @@ sinkrill
 The PC and Sonos both play, and no new device appears. Use this when you just
 want the room to hear what the PC is playing.
 
+Whichever you choose, running it in a terminal opens the control panel: the
+stream and its controls in one window. Add `--plain` to keep the scrolling log
+instead, which is also what happens automatically when the output is not a
+terminal — a service, `nohup`, a pipe, or a redirect.
+
 ## How it works
 
 ```
@@ -191,6 +196,9 @@ sinkrill --device 192.168.1.42 --virtual-sink
 sinkrill
 sinkrill "Living Room"
 
+# Keep the scrolling log instead of the panel
+sinkrill --virtual-sink --plain
+
 # List what's on the network
 sinkrill devices
 
@@ -250,6 +258,7 @@ free port.
 | `--no-tune` | off | Don't control Sonos; only serve the stream |
 | `--virtual-sink [name]` | off | Create the **Sinkrill** output device (recommended); default name `sinkrill` |
 | `--station <name>` | `<hostname> streaming audio` | Name shown on the speaker |
+| `--plain` | off | Log to the terminal instead of showing the panel |
 | `-v, --verbose` | off | Verbose logs |
 
 ### HTTP endpoints
@@ -314,6 +323,10 @@ Now choose **Sinkrill** as the output in your desktop audio settings (or per-app
 to that device goes to the speaker; everything else keeps playing locally. The
 device is removed again when Sinkrill exits.
 
+Until something is routed to it, the device is silent. The panel makes that
+visible: while no application is connected to it, the `Hint` line names the
+device you need to pick.
+
 ```bash
 sinkrill --virtual-sink sinkrill          # explicit name
 sinkrill --virtual-sink my-tv-sink     # any valid sink name
@@ -349,9 +362,10 @@ process, removes the virtual device, and exits.
 
 ### Control panel
 
-`sinkrill tui` opens a small live panel in a second terminal while the stream
-runs. It follows the local instance, so it shows capture health and buffering
-next to the room's state:
+Start a stream in a terminal (`sinkrill --virtual-sink`, or any variant) and the
+panel opens with it: room, volume, capture health, and buffering in one window.
+Bare `sinkrill tui` opens the same panel without starting anything, which is
+handy next to a stream that is already running.
 
 ```text
  sinkrill  homedesktop streaming audio
@@ -369,11 +383,19 @@ next to the room's state:
   ready
 ```
 
+When the Sinkrill device exists but no application has been routed to it, the
+panel says so instead of leaving you with silence and no clue:
+
+```text
+  Hint      no app is using "sinkrill" yet; pick it as your output device
+```
+
 `up`/`down` nudge the volume by 2, `left`/`right` by 10 (`+`, `-`, `[`, `]`
 do the same). `n`/`b` skip within the room's queue, which only does something
 when the room is playing an album or playlist rather than this stream. `r`
 points the room back at this stream, the same as `sinkrill retune`. `q`, `Esc`,
-and `Ctrl+C` all leave the panel; the stream keeps running.
+and `Ctrl+C` all leave the panel. A panel that started the stream also stops it;
+a panel that attached leaves the stream running.
 
 Bare `sinkrill tui` attaches to the instance that is already running — started
 in another terminal, by a service, or by an older binary. Add a room or any
@@ -388,6 +410,19 @@ That is one command for audio plus controls. Quitting it (`q`) stops the
 stream: the speaker, the capture process, and the virtual device are all
 released before the terminal is handed back. While it runs, the stream's own
 log lines appear in the panel instead of printing over it.
+
+After the panel closes, a short summary stays in the terminal — room, station,
+stream URL, and how much was captured — so the useful parts of the log survive:
+
+```text
+sinkrill stopped on Den (192.168.0.188)
+  station  homedesktop streaming audio
+  uri      http://192.168.0.29:8567/stream.wav
+  captured 12 MB, 1 listener
+```
+
+Any start command accepts `--plain` to skip the panel and watch the full log
+as it happens.
 
 To drive a room that the running instance is not tuned to — say your stream is
 on Den and you want Kitchen to join it — add `--attach`, which starts nothing:

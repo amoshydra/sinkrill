@@ -16,6 +16,7 @@ import (
 	"github.com/amoshydra/sinkrill/internal/logx"
 	"github.com/amoshydra/sinkrill/internal/sink"
 	"github.com/amoshydra/sinkrill/internal/sonos"
+	"github.com/amoshydra/sinkrill/internal/virtualsink"
 )
 
 // room is the slice of the speaker the panel uses. *sonos.Client is the real
@@ -70,10 +71,16 @@ func Run(ctx context.Context, opts Options) error {
 	}
 
 	fmt.Fprint(os.Stdout, enterScreen)
-	defer func() {
+	restored := false
+	restore := func() {
+		if restored {
+			return
+		}
+		restored = true
 		fmt.Fprint(os.Stdout, leaveScreen)
 		_ = term.Restore(fd, old)
-	}()
+	}
+	defer restore()
 
 	model := Model{Room: opts.Room, Volume: -1}
 	if opts.Local != nil {
@@ -121,6 +128,16 @@ func Run(ctx context.Context, opts Options) error {
 		runCancel, runErr = nil, nil
 	}
 
+	// finish stops the stream when the panel owns it, hands the terminal back,
+	// and prints the facts the alt screen would otherwise take with it.
+	finish := func() {
+		stopStream()
+		restore()
+		for _, line := range summaryLines(model, opts.Stream != nil) {
+			fmt.Fprintln(os.Stdout, line)
+		}
+	}
+
 	keys := make(chan key, 8)
 	go decodeKeys(os.Stdin, func(k key) {
 		select {
@@ -146,7 +163,7 @@ func Run(ctx context.Context, opts Options) error {
 	for {
 		select {
 		case <-ctx.Done():
-			stopStream()
+			finish()
 			return nil
 
 		case err := <-runErr:
@@ -170,7 +187,7 @@ func Run(ctx context.Context, opts Options) error {
 		case k := <-keys:
 			act := keyAction(k, model)
 			if act.kind == actQuit {
-				stopStream()
+				finish()
 				return nil
 			}
 			if act.kind == actNone {
@@ -213,13 +230,15 @@ func (b *logBuffer) Last() string {
 
 // snapshot is one poll of the room and the local instance.
 type snapshot struct {
-	volume  int
-	muted   bool
-	state   string
-	playing string
-	local   *sink.Status
-	speaker room  // the client this poll used, once the room's IP is known
-	err     error // the room did not answer
+	volume      int
+	muted       bool
+	state       string
+	playing     string
+	local       *sink.Status
+	speaker     room // the client this poll used, once the room's IP is known
+	routed      int  // playback streams pointing at the virtual sink
+	routedKnown bool
+	err         error // the room did not answer
 }
 
 // apply folds a poll into the model. A room that answers clears a stale error;
@@ -236,6 +255,7 @@ func (m *Model) apply(s snapshot) {
 		m.Message, m.Failed = "", false
 	}
 	m.Volume, m.Muted, m.State, m.Playing = s.volume, s.muted, s.state, s.playing
+	m.RoutedApps, m.RoutedKnown = s.routed, s.routedKnown
 	if s.local != nil {
 		m.updateLocal(s.local)
 	}
@@ -273,6 +293,13 @@ func poll(ctx context.Context, ip string, port int, out chan<- snapshot, refresh
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
+	var (
+		routed      int
+		routedKnown bool
+		routedSink  string
+		routedAt    time.Time
+	)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -287,6 +314,18 @@ func poll(ctx context.Context, ip string, port int, out chan<- snapshot, refresh
 			speaker = sonos.NewClient(ip)
 			snap = collect(ctx, speaker, port)
 		}
+		// Routing changes when the user picks a different output device, which
+		// is a pactl call per check, so refresh it at half the poll rate.
+		if snap.local != nil && snap.local.VirtualSink != nil {
+			name := snap.local.VirtualSink.Name
+			if name != routedSink || time.Since(routedAt) >= 2*time.Second {
+				routed, routedKnown = virtualsink.RoutedInputs(name)
+				routedSink, routedAt = name, time.Now()
+			}
+		} else {
+			routed, routedKnown, routedSink, routedAt = 0, false, "", time.Time{}
+		}
+		snap.routed, snap.routedKnown = routed, routedKnown
 		snap.speaker = speaker
 
 		select {

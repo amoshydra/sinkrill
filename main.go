@@ -16,6 +16,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"golang.org/x/term"
+
 	"github.com/amoshydra/sinkrill/internal/capture"
 	"github.com/amoshydra/sinkrill/internal/doctor"
 	"github.com/amoshydra/sinkrill/internal/logx"
@@ -119,6 +121,8 @@ Usage:
   sinkrill --virtual-sink             Add a "Sinkrill" output device (recommended)
   sinkrill --virtual-sink "Living Room"
   sinkrill                            Mirror the current output (no new device)
+                                      In a terminal this opens the control panel;
+                                      services and pipes keep plain logs
   sinkrill devices [options]          List Sonos devices on the LAN
   sinkrill stop [options]             Stop playback on a device
   sinkrill volume [args]              Show or change the speaker volume
@@ -149,10 +153,12 @@ Options for start and tui:
   -v, --verbose             Verbose logs
 
 Panel:
+  sinkrill                            Start streaming, with the panel on a terminal
   sinkrill tui                        Control the instance that is already running
   sinkrill tui "Living Room" --virtual-sink
                                       Start that stream, and show it
   sinkrill tui --attach -d "Kitchen"  Control another room, starting nothing
+  --plain                             Keep the scrolling log instead of the panel
 
 Volume:
   sinkrill volume                     Print the current volume
@@ -227,6 +233,7 @@ func runStart(args []string) int {
 	fs := flag.NewFlagSet("start", flag.ContinueOnError)
 	start := &startFlags{}
 	addStartFlags(fs, start)
+	plain := boolVar(fs, nil, "plain", "", false, "log to the terminal instead of showing the panel")
 
 	if code, ok := parseFlags(fs, args); !ok {
 		return code
@@ -236,15 +243,40 @@ func runStart(args []string) int {
 		return 2
 	}
 
+	opts := start.stream()
 	log := logx.New(start.verbose)
 	ctx, stop := signalContext()
 	defer stop()
 
-	if err := sink.Run(ctx, start.stream(), log); err != nil {
+	// A terminal gets the control panel, because that is where a beginner can
+	// see room, volume, capture health, and the "nothing is routed to the
+	// device" hint. Anything non-interactive — a service, nohup, a redirect —
+	// keeps plain logs, because a full-screen panel there is either invisible
+	// or writes escape codes into a journal.
+	if !*plain && interactive() {
+		if err := tui.Run(ctx, tui.Options{
+			Port:    opts.Port,
+			Stream:  &opts,
+			Verbose: start.verbose,
+		}); err != nil {
+			log.Errorf("%v", err)
+			return 1
+		}
+		return 0
+	}
+
+	if err := sink.Run(ctx, opts, log); err != nil {
 		log.Errorf("%v", err)
 		return 1
 	}
 	return 0
+}
+
+// interactive reports whether a panel can own the terminal. Both ends matter:
+// stdin gives the keys and stdout draws the frame, so `sinkrill | tee log` has
+// a terminal on one side only and must stay plain.
+func interactive() bool {
+	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 func runDevices(args []string) int {

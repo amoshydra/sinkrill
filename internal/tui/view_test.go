@@ -179,3 +179,85 @@ func TestCRLFWriterReturnsTheInputLength(t *testing.T) {
 		t.Errorf("wrote %q, want %q", got, "a\r\nb")
 	}
 }
+
+func TestRenderHintsWhenNothingIsRouted(t *testing.T) {
+	st := localStatus()
+	st.VirtualSink = &sink.VirtualSinkStatus{Name: "sinkrill", CreatedByUs: true}
+
+	silent := Model{Room: "Den", Volume: 40, Stream: st.URI, Playing: st.URI, Local: st,
+		RoutedApps: 0, RoutedKnown: true}
+	text := joined(panel(t, silent, 100))
+	if !strings.Contains(text, `no app is using "sinkrill" yet`) {
+		t.Errorf("expected the routing hint:\n%s", text)
+	}
+
+	playing := silent
+	playing.RoutedApps = 2
+	if text := joined(panel(t, playing, 100)); strings.Contains(text, "no app is using") {
+		t.Errorf("hint survived with two apps routed:\n%s", text)
+	}
+
+	unknown := silent
+	unknown.RoutedKnown = false
+	if text := joined(panel(t, unknown, 100)); strings.Contains(text, "no app is using") {
+		t.Errorf("hint shown without knowing the routing:\n%s", text)
+	}
+
+	// No virtual sink means nothing can be routed to it; the hint would be
+	// nonsense in mirror mode.
+	plain := silent
+	plain.Local = localStatus()
+	if text := joined(panel(t, plain, 100)); strings.Contains(text, "no app is using") {
+		t.Errorf("hint shown without a virtual sink:\n%s", text)
+	}
+}
+
+func TestSummaryLines(t *testing.T) {
+	st := localStatus()
+	st.ListenerBytes = 12_400_000
+	st.Listeners = 1
+	m := Model{Room: "Den (192.168.0.188)", Station: st.Station, Stream: st.URI, Local: st}
+
+	owned := summaryLines(m, true)
+	want := []string{
+		"sinkrill stopped on Den (192.168.0.188)",
+		"  station  homedesktop streaming audio",
+		"  uri      http://192.168.0.29:8567/stream.wav",
+		"  captured 12 MB, 1 listener",
+	}
+	if len(owned) != len(want) {
+		t.Fatalf("summary = %q, want %q", owned, want)
+	}
+	for i := range want {
+		if owned[i] != want[i] {
+			t.Errorf("line %d = %q, want %q", i, owned[i], want[i])
+		}
+	}
+
+	// Attached panels must not claim to have stopped anything.
+	attached := summaryLines(m, false)
+	if attached[0] != "panel closed; the stream is still running" {
+		t.Errorf("attach summary starts with %q", attached[0])
+	}
+
+	// Nothing captured yet: no misleading "0 B" line.
+	empty := summaryLines(Model{Room: "Den", Local: localStatus()}, true)
+	if strings.Contains(strings.Join(empty, "\n"), "captured") {
+		t.Errorf("summary reported traffic that did not happen: %q", empty)
+	}
+}
+
+func TestHumanBytes(t *testing.T) {
+	tests := map[int64]string{
+		0:             "0 B",
+		999:           "999 B",
+		1000:          "1.0 kB",
+		12_400_000:    "12 MB",
+		2_500_000_000: "2.5 GB",
+	}
+	for in, want := range tests {
+		if got := humanBytes(in); got != want {
+			t.Errorf("humanBytes(%d) = %q, want %q", in, got, want)
+		}
+	}
+}

@@ -11,6 +11,7 @@ const (
 	styleDim   = "\x1b[2m"
 	styleBold  = "\x1b[1m"
 	styleRed   = "\x1b[31m"
+	styleWarn  = "\x1b[33m"
 	styleReset = "\x1b[0m"
 )
 
@@ -45,6 +46,10 @@ func render(w io.Writer, m Model, width int) {
 	line("Stream", m.streamLine())
 	line("Capture", m.captureLine())
 	line("Buffer", m.bufferLine())
+	if hint := m.routingHint(); hint != "" {
+		fmt.Fprintf(w, "  %s%s%s %s\n", styleDim, pad("Hint", 9), styleReset,
+			styleWarn+clip(hint, width-13)+styleReset)
+	}
 	if m.Log != "" {
 		fmt.Fprintf(w, "  %s%s%s %s\n", styleDim, pad("Log", 9), styleReset, clip(m.Log, width-13))
 	}

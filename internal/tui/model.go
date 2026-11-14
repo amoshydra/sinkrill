@@ -21,6 +21,12 @@ type Model struct {
 	Message string       // result of the last action, or the last error
 	Failed  bool         // Message is an error
 	Log     string       // most recent stream log line, in stream mode
+
+	// RoutedApps is how many playback streams point at the virtual sink.
+	// Zero is the most common reason a fresh setup is silent, so the panel
+	// says it out loud instead of leaving people to guess.
+	RoutedApps  int
+	RoutedKnown bool
 }
 
 // stateLabel turns a UPnP transport state into something readable.
@@ -100,6 +106,68 @@ func (m Model) bufferLine() string {
 	}
 	return fmt.Sprintf("%d B queued, %d dropped, %d %s",
 		m.Local.QueuedBytes, m.Local.DroppedChunks, m.Local.Listeners, noun)
+}
+
+// routingHint explains the one failure the numbers cannot: the stream is
+// running and the room is playing it, but no application is sending audio into
+// the virtual device, so everything is silence.
+func (m Model) routingHint() string {
+	if !m.RoutedKnown || m.RoutedApps > 0 {
+		return ""
+	}
+	if m.Local == nil || m.Local.VirtualSink == nil {
+		return ""
+	}
+	return fmt.Sprintf("no app is using %q yet; pick it as your output device",
+		m.Local.VirtualSink.Name)
+}
+
+// summaryLines is what gets printed after the panel closes, restoring the
+// facts a scrolling log would have left on screen: which room, which URI, and
+// how much was actually served.
+func summaryLines(m Model, owned bool) []string {
+	lines := make([]string, 0, 4)
+	switch {
+	case owned && m.Room != "":
+		lines = append(lines, "sinkrill stopped on "+m.Room)
+	case owned:
+		lines = append(lines, "sinkrill stopped")
+	default:
+		lines = append(lines, "panel closed; the stream is still running")
+	}
+	if m.Station != "" {
+		lines = append(lines, "  station  "+m.Station)
+	}
+	if m.Stream != "" {
+		lines = append(lines, "  uri      "+m.Stream)
+	}
+	if m.Local != nil && m.Local.ListenerBytes > 0 {
+		noun := "listeners"
+		if m.Local.Listeners == 1 {
+			noun = "listener"
+		}
+		lines = append(lines, fmt.Sprintf("  captured %s, %d %s",
+			humanBytes(m.Local.ListenerBytes), m.Local.Listeners, noun))
+	}
+	return lines
+}
+
+// humanBytes keeps the served total readable without a units dependency.
+func humanBytes(n int64) string {
+	const unit = 1000
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	value, exp := float64(n), 0
+	for value >= unit && exp < 3 {
+		value /= unit
+		exp++
+	}
+	suffix := []string{"kB", "MB", "GB", "TB"}[exp-1]
+	if value < 10 {
+		return fmt.Sprintf("%.1f %s", value, suffix)
+	}
+	return fmt.Sprintf("%.0f %s", value, suffix)
 }
 
 // volumeBar draws a fixed-width level bar. A negative volume (device not

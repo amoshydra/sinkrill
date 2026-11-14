@@ -180,3 +180,46 @@ func pactl(args ...string) (string, error) {
 	}
 	return strings.TrimSpace(string(out)), nil
 }
+
+// RoutedInputs counts the playback streams whose sink is the named one. A
+// virtual sink with zero inputs is silent: applications are still playing to
+// their previous device, and people reasonably conclude that sinkrill is
+// broken. known is false when pactl cannot answer, which is not an error worth
+// showing.
+func RoutedInputs(sinkName string) (count int, known bool) {
+	sinks, err := pactl("list", "short", "sinks")
+	if err != nil {
+		return 0, false
+	}
+
+	index := ""
+	for _, line := range strings.Split(sinks, "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) >= 2 && fields[1] == sinkName {
+			index = fields[0]
+			break
+		}
+	}
+	if index == "" {
+		return 0, false
+	}
+
+	inputs, err := pactl("list", "short", "sink-inputs")
+	if err != nil {
+		return 0, false
+	}
+	return countInputs(inputs, index), true
+}
+
+// countInputs counts lines of `pactl list short sink-inputs` whose sink index
+// matches. Each line is: index, sink, client, driver, sample spec.
+func countInputs(list, sinkIndex string) int {
+	count := 0
+	for _, line := range strings.Split(list, "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) >= 2 && fields[1] == sinkIndex {
+			count++
+		}
+	}
+	return count
+}
