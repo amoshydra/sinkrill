@@ -24,9 +24,12 @@ sinkrill --no-tune              # only serve the stream; tune the speaker yourse
 ```
 
 One command does both jobs: it starts the stream, and in a terminal it draws a
-live panel for volume, mute, play/pause, and retune. Nothing non-interactive
-changes — a service, `nohup`, a pipe, or a redirect gets plain logs instead of
-escape codes.
+live panel for volume, mute, play/pause, and retune. If a stream is already
+running on the port, it attaches to that instead of starting another. Naming a
+room or any stream option always starts a new stream.
+
+Nothing non-interactive changes — a service, `nohup`, a pipe, or a redirect
+gets plain logs instead of escape codes.
 
 By default Sinkrill creates a real output device called **Sinkrill**, so only
 the apps you route to it reach the room, with no echo. Add `--mirror` to
@@ -200,7 +203,7 @@ make install    # installs to /usr/local/bin (PREFIX=/... to override)
 
 ```bash
 # Default: create a "Sinkrill" output device, and open the panel
-sinkrill
+sinkrill                                # attaches if a stream is already running
 sinkrill "Living Room"                  # pick a room
 sinkrill --device 192.168.1.42
 
@@ -366,7 +369,7 @@ process, removes the virtual device, and exits.
 
 | What | How |
 |------|-----|
-| Start / stop | `sinkrill` / `Ctrl+C`, `q` in the panel, or `sinkrill stop "Living Room"` |
+| Start / stop | `sinkrill` (starts, or attaches if one is already running) / `Ctrl+C`, `q` in the panel, or `sinkrill stop "Living Room"` |
 | Volume | `sinkrill volume 40` while running, `sinkrill volume +5` / `mute`, or `--volume 40` on start |
 | Panel | Opens with the stream in a terminal. `sinkrill tui` attaches to a running stream from another terminal; `--plain` keeps the scrolling log instead |
 | Re-tune | `sinkrill retune` — points the room back at the running stream, e.g. after another device took it |
@@ -380,9 +383,9 @@ process, removes the virtual device, and exits.
 
 Run `sinkrill` in a terminal and the stream and panel come up together: room,
 volume, capture health, and buffering in one window. There is no second
-command to start and no `tui` flag to remember. `sinkrill tui` opens the same
-panel without starting anything, which is useful when the stream is already
-running in another terminal or under a service.
+command to start and no `tui` flag to remember. If a stream is already
+running on the port, `sinkrill` attaches to it; naming a room or any stream
+option starts a new one. `sinkrill tui` is the same panel; on its own it always attaches, never starts.
 
 ```text
  sinkrill  homedesktop streaming audio

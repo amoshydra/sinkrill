@@ -157,6 +157,39 @@ func TestExplicitSinkWinsOverSource(t *testing.T) {
 	}
 }
 
+// Bare `sinkrill` should behave like `sinkrill tui` when a stream is already
+// running: attach, rather than start a second stream on a busy port.
+func TestStartAttachesOnlyWhenNothingWasAskedFor(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		running bool
+		want    bool
+	}{
+		{"nothing running starts", nil, false, false},
+		{"bare command attaches", nil, true, true},
+		{"verbose alone attaches", []string{"-v"}, true, true},
+		{"port chooses the instance", []string{"--port", "9000"}, true, true},
+		{"room asks for a new stream", []string{"-d", "Den"}, true, false},
+		{"source asks for a new stream", []string{"--source", "my.monitor"}, true, false},
+		{"mirror asks for a new stream", []string{"--mirror"}, true, false},
+		{"virtual sink asks for a new stream", []string{"--virtual-sink"}, true, false},
+		{"no-tune asks for a new stream", []string{"--no-tune"}, true, false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fs, _, _, _ := tuiFlagSet()
+			if err := fs.Parse(tc.args); err != nil {
+				t.Fatalf("parse %q: %v", tc.args, err)
+			}
+			if got := startAttaches(fs, tc.running); got != tc.want {
+				t.Errorf("startAttaches = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestStartRoomArgumentIsRewritten(t *testing.T) {
 	command, args := splitCommand([]string{"Living Room", "--virtual-sink"})
 	if command != "start" {

@@ -154,6 +154,7 @@ Options for start and tui:
 
 Panel:
   sinkrill                            Start streaming, with the panel on a terminal
+                                      If a stream is already running, control it instead
   sinkrill tui                        Control the instance that is already running
   sinkrill tui "Living Room"
                                       Start that stream, and show it
@@ -298,6 +299,36 @@ func runStart(args []string) int {
 	// keeps plain logs, because a full-screen panel there is either invisible
 	// or writes escape codes into a journal.
 	if !*plain && interactive() {
+		_, running := localStatus(opts.Port)
+
+		// No stream options and something is already listening: control that
+		// instead of starting a second stream that cannot bind the port. This
+		// is what makes `sinkrill` and `sinkrill tui` the same gesture.
+		if startAttaches(fs, running) {
+			dev, err := resolveTarget(ctx, opts.Device, opts.Port, log)
+			if err != nil {
+				log.Errorf("%v", err)
+				return 1
+			}
+			local, _ := localStatus(opts.Port)
+			if err := tui.Run(ctx, tui.Options{
+				Room:    dev.Name,
+				Device:  dev.IP,
+				Port:    opts.Port,
+				Local:   local,
+				Verbose: start.verbose,
+			}); err != nil {
+				log.Errorf("%v", err)
+				return 1
+			}
+			return 0
+		}
+
+		if wanted, _ := tuiWantsStream(fs, false, false); wanted && running {
+			log.Errorf("a sinkrill instance is already running on port %d; use `sinkrill tui` to control it, or --port for another", opts.Port)
+			return 1
+		}
+
 		if err := tui.Run(ctx, tui.Options{
 			Port:    opts.Port,
 			Stream:  &opts,
@@ -699,6 +730,18 @@ func tuiWantsStream(fs *flag.FlagSet, attach, stream bool) (bool, error) {
 		return true, nil
 	}
 	return wanted, nil
+}
+
+// startAttaches reports whether a terminal `sinkrill` should control the
+// instance already listening instead of starting a second one. Naming a room,
+// a source, or any stream option is an explicit request to start. Callers
+// exclude --plain, which never opens a panel.
+func startAttaches(fs *flag.FlagSet, running bool) bool {
+	if !running {
+		return false
+	}
+	wanted, err := tuiWantsStream(fs, false, false)
+	return err == nil && !wanted
 }
 
 // runTUI controls a room from a live panel. With no stream options it attaches
