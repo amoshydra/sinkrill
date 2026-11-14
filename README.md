@@ -260,7 +260,7 @@ free port.
 |--------|---------|-------------|
 | `-d, --device <name\|ip>` | auto | Sonos room name (partial match) or IP address |
 | `-s, --source <source>` | current output | PulseAudio/PipeWire source to record; implies `--mirror` |
-| `-p, --port <port>` | `8567` | HTTP port (`0` picks a free one) |
+| `-p, --port <port>` | `8567` | HTTP port (`0` picks a free one; with the panel, use `--plain`) |
 | `-f, --format <wav\|mp3>` | `wav` | `wav` = lowest latency (~1.5 Mbps); `mp3` = ~192 kbps, more buffering |
 | `-b, --bitrate <kbps>` | `192` | MP3 bitrate, only used with `--format mp3` |
 | `--warmup <ms>` | `0` | Replay this much recent audio to a new listener (higher latency) |
@@ -385,7 +385,8 @@ Run `sinkrill` in a terminal and the stream and panel come up together: room,
 volume, capture health, and buffering in one window. There is no second
 command to start and no `tui` flag to remember. If a stream is already
 running on the port, `sinkrill` attaches to it; naming a room or any stream
-option starts a new one. `sinkrill tui` is the same panel; on its own it always attaches, never starts.
+option starts a new one. `sinkrill tui` is the same panel; on its own it always attaches, so with
+nothing running it shows an empty panel instead of starting audio.
 
 ```text
  sinkrill  homedesktop streaming audio

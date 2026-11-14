@@ -22,6 +22,14 @@ type Model struct {
 	Failed  bool         // Message is an error
 	Log     string       // most recent stream log line, in stream mode
 
+	// Attached is true when the panel is watching an instance it did not
+	// start, so the footer can say that nothing is running there yet.
+	Attached bool
+
+	// HadStream is set once /status has been seen, so the exit summary can
+	// tell "stopped while watching" from "was never running".
+	HadStream bool
+
 	// RoutedApps is how many playback streams point at the virtual sink.
 	// Zero is the most common reason a fresh setup is silent, so the panel
 	// says it out loud instead of leaving people to guess.
@@ -132,8 +140,12 @@ func summaryLines(m Model, owned bool) []string {
 		lines = append(lines, "sinkrill stopped on "+m.Room)
 	case owned:
 		lines = append(lines, "sinkrill stopped")
-	default:
+	case m.Local != nil || m.Stream != "":
 		lines = append(lines, "panel closed; the stream is still running")
+	case m.HadStream:
+		lines = append(lines, "panel closed; the stream stopped")
+	default:
+		lines = append(lines, "panel closed; no stream was running")
 	}
 	if m.Station != "" {
 		lines = append(lines, "  station  "+m.Station)
@@ -141,7 +153,9 @@ func summaryLines(m Model, owned bool) []string {
 	if m.Stream != "" {
 		lines = append(lines, "  uri      "+m.Stream)
 	}
-	if m.Local != nil && m.Local.ListenerBytes > 0 {
+	// Only a stream this panel started has a session worth reporting. An
+	// attached panel would otherwise print the instance's lifetime total.
+	if owned && m.Local != nil && m.Local.ListenerBytes > 0 {
 		noun := "listeners"
 		if m.Local.Listeners == 1 {
 			noun = "listener"

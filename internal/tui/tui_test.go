@@ -430,3 +430,27 @@ func TestLogBufferIsSafeForConcurrentUse(t *testing.T) {
 		}
 	}
 }
+
+func TestDropLocalKeepsTheRoomUsable(t *testing.T) {
+	m := Model{
+		Room:    "Den",
+		Volume:  22,
+		Station: "homedesktop streaming audio",
+		Stream:  "http://192.168.0.29:8567/stream.wav",
+		Local:   localStatus(),
+	}
+	m.dropLocal()
+
+	if m.Local != nil || m.Stream != "" || m.Station != "" {
+		t.Errorf("stream fields survived: %+v", m)
+	}
+	if !m.Failed || !strings.Contains(m.Message, "stopped") {
+		t.Errorf("message = %q, failed = %v", m.Message, m.Failed)
+	}
+	if m.Room != "Den" || m.Volume != 22 {
+		t.Errorf("room controls were cleared: %+v", m)
+	}
+	if !m.HadStream {
+		t.Error("dropping the stream forgot that one had existed")
+	}
+}

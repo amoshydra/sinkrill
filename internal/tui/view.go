@@ -65,6 +65,8 @@ func render(w io.Writer, m Model, width int) {
 	}
 
 	switch {
+	case m.Message == "" && m.Attached && m.Local == nil && m.Stream == "":
+		fmt.Fprintln(w, styleDim+"  no stream on this port; `sinkrill` starts one"+styleReset)
 	case m.Message == "":
 		fmt.Fprintln(w, styleDim+"  ready"+styleReset)
 	case m.Failed:

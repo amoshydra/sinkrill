@@ -82,7 +82,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer restore()
 
-	model := Model{Room: opts.Room, Volume: -1}
+	model := Model{Room: opts.Room, Volume: -1, Attached: opts.Stream == nil}
 	if opts.Local != nil {
 		model.Local = opts.Local
 		model.Station = opts.Local.Station
@@ -159,6 +159,11 @@ func Run(ctx context.Context, opts Options) error {
 	default:
 	}
 
+	// A status fetch can miss once while an instance restarts. Three misses in
+	// a row means it is gone, and an attached panel must not keep showing the
+	// capture numbers it last saw.
+	misses := 0
+
 	redraw()
 	for {
 		select {
@@ -179,6 +184,14 @@ func Run(ctx context.Context, opts Options) error {
 
 		case snap := <-snapshots:
 			model.apply(snap)
+			if snap.local == nil {
+				misses++
+			} else {
+				misses = 0
+			}
+			if misses >= 3 && model.Local != nil {
+				model.dropLocal()
+			}
 			if snap.speaker != nil {
 				speaker = snap.speaker
 			}
@@ -261,7 +274,19 @@ func (m *Model) apply(s snapshot) {
 	}
 }
 
+// dropLocal forgets an instance that has stopped answering. Only the stream
+// fields go: the room can still be controlled, so its volume and transport
+// state stay useful.
+func (m *Model) dropLocal() {
+	m.HadStream = true
+	m.Local = nil
+	m.Stream = ""
+	m.Station = ""
+	m.Message, m.Failed = "the stream stopped", true
+}
+
 func (m *Model) updateLocal(st *sink.Status) {
+	m.HadStream = true
 	m.Local = st
 	m.Stream = st.URI
 	m.Station = st.Station

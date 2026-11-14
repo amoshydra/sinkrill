@@ -299,6 +299,11 @@ func runStart(args []string) int {
 	// keeps plain logs, because a full-screen panel there is either invisible
 	// or writes escape codes into a journal.
 	if !*plain && interactive() {
+		if opts.Port == 0 {
+			log.Errorf("the panel needs a fixed --port; add --plain to stream on a random port")
+			return 2
+		}
+
 		_, running := localStatus(opts.Port)
 
 		// No stream options and something is already listening: control that
@@ -773,16 +778,17 @@ func runTUI(args []string) int {
 	ctx, stop := signalContext()
 	defer stop()
 
+	if start.opts.Port == 0 {
+		log.Errorf("the panel needs a fixed --port; 0 picks one it cannot find")
+		return 2
+	}
+
 	plan := tui.Options{Port: start.opts.Port, Verbose: start.verbose}
 
 	if withStream {
 		opts, err := start.stream(fs)
 		if err != nil {
 			log.Errorf("%v", err)
-			return 2
-		}
-		if opts.Port == 0 {
-			log.Errorf("the panel needs a fixed --port; port 0 picks one it cannot find")
 			return 2
 		}
 		if st, ok := localStatus(opts.Port); ok {

@@ -234,10 +234,27 @@ func TestSummaryLines(t *testing.T) {
 		}
 	}
 
-	// Attached panels must not claim to have stopped anything.
+	// Attached panels must not claim to have stopped anything, and the
+	// captured total belongs to the instance, not to this panel session.
 	attached := summaryLines(m, false)
 	if attached[0] != "panel closed; the stream is still running" {
 		t.Errorf("attach summary starts with %q", attached[0])
+	}
+	if strings.Contains(strings.Join(attached, "\n"), "captured") {
+		t.Errorf("attach summary reported the instance's lifetime bytes: %q", attached)
+	}
+
+	// Attaching to a port with no instance must not claim a stream exists.
+	none := summaryLines(Model{Room: "Den"}, false)
+	if none[0] != "panel closed; no stream was running" {
+		t.Errorf("empty attach summary starts with %q", none[0])
+	}
+
+	// A stream that stopped while it was being watched is neither "still
+	// running" nor "never started".
+	stopped := summaryLines(Model{Room: "Den", HadStream: true}, false)
+	if stopped[0] != "panel closed; the stream stopped" {
+		t.Errorf("stopped attach summary starts with %q", stopped[0])
 	}
 
 	// Nothing captured yet: no misleading "0 B" line.
@@ -259,5 +276,27 @@ func TestHumanBytes(t *testing.T) {
 		if got := humanBytes(in); got != want {
 			t.Errorf("humanBytes(%d) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestRenderSaysWhenNothingIsRunning(t *testing.T) {
+	empty := Model{Room: "Den", Volume: 22, Attached: true}
+	if text := joined(panel(t, empty, 100)); !strings.Contains(text, "no stream on this port") {
+		t.Errorf("attached panel with no instance did not say so:\n%s", text)
+	}
+
+	// Once a stream exists, the footer goes back to normal.
+	running := empty
+	running.Local = localStatus()
+	running.Stream = running.Local.URI
+	if text := joined(panel(t, running, 100)); strings.Contains(text, "no stream on this port") {
+		t.Errorf("footer still claims nothing is running:\n%s", text)
+	}
+
+	// A stream this panel started is briefly without /status at startup; it
+	// must not be told that nothing is running.
+	owned := Model{Room: "Den", Volume: 22}
+	if text := joined(panel(t, owned, 100)); strings.Contains(text, "no stream on this port") {
+		t.Errorf("owned stream was treated as an empty attach:\n%s", text)
 	}
 }
