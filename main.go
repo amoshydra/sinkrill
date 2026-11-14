@@ -118,11 +118,10 @@ func printHelp() {
 	fmt.Printf(`sinkrill — stream this computer's audio to Sonos speakers
 
 Usage:
-  sinkrill --virtual-sink             Add a "Sinkrill" output device (recommended)
-  sinkrill --virtual-sink "Living Room"
-  sinkrill                            Mirror the current output (no new device)
-                                      In a terminal this opens the control panel;
-                                      services and pipes keep plain logs
+  sinkrill                            Stream, with the control panel on a terminal
+                                      Creates a "Sinkrill" output device to route apps to
+  sinkrill "Living Room"
+  sinkrill --mirror                   Mirror the current output (no new device)
   sinkrill devices [options]          List Sonos devices on the LAN
   sinkrill stop [options]             Stop playback on a device
   sinkrill volume [args]              Show or change the speaker volume
@@ -136,7 +135,7 @@ Usage:
 
 Options for start and tui:
   -d, --device <name|ip>    Sonos room name or IP (auto-detected if only one)
-  -s, --source <source>     PulseAudio/PipeWire source (default @DEFAULT_MONITOR@)
+  -s, --source <source>     PulseAudio/PipeWire source (implies --mirror)
   -p, --port <port>         HTTP port (default 8567, 0 picks a free one)
   -f, --format <wav|mp3>    wav = lowest latency, mp3 = lower bandwidth
   -b, --bitrate <kbps>      MP3 bitrate (default 192)
@@ -148,14 +147,15 @@ Options for start and tui:
       --volume <0-100>      Set the speaker volume on start
       --keepalive           Re-tune Sonos if it stops by itself
       --no-tune             Only serve the stream; do not control Sonos
-      --virtual-sink [name] Create the Sinkrill output device (recommended)
+      --mirror              Mirror the current output instead of creating a device
+      --virtual-sink [name] Create the Sinkrill output device (default)
       --station <name>      Name shown on the speaker (default %q)
   -v, --verbose             Verbose logs
 
 Panel:
   sinkrill                            Start streaming, with the panel on a terminal
   sinkrill tui                        Control the instance that is already running
-  sinkrill tui "Living Room" --virtual-sink
+  sinkrill tui "Living Room"
                                       Start that stream, and show it
   sinkrill tui --attach -d "Kitchen"  Control another room, starting nothing
   --plain                             Keep the scrolling log instead of the panel
@@ -178,27 +178,29 @@ Run "sinkrill <command> -h" for command-specific options.
 type startFlags struct {
 	opts        sink.Options
 	virtualSink optionalString
+	mirror      bool
 	noTune      bool
 	verbose     bool
 }
 
 func addStartFlags(fs *flag.FlagSet, o *startFlags) {
 	o.opts = sink.Options{
-		Source:   "@DEFAULT_MONITOR@",
-		Port:     8567,
-		Bitrate:  192,
-		Format:   "wav",
-		Bind:     "0.0.0.0",
-		FFmpeg:   "ffmpeg",
-		Parec:    "parec",
-		Volume:   -1,
-		Tune:     true,
-		Station:  sink.DefaultStation(),
-		WarmupMS: 0,
+		Source:      "@DEFAULT_MONITOR@",
+		Port:        8567,
+		Bitrate:     192,
+		Format:      "wav",
+		Bind:        "0.0.0.0",
+		FFmpeg:      "ffmpeg",
+		Parec:       "parec",
+		Volume:      -1,
+		Tune:        true,
+		Station:     sink.DefaultStation(),
+		WarmupMS:    0,
+		VirtualSink: "sinkrill",
 	}
 
 	strVar(fs, &o.opts.Device, "device", "d", "", "Sonos room name or IP")
-	strVar(fs, &o.opts.Source, "source", "s", o.opts.Source, "PulseAudio/PipeWire source")
+	strVar(fs, &o.opts.Source, "source", "s", o.opts.Source, "PulseAudio/PipeWire source (implies --mirror)")
 	intVar(fs, &o.opts.Port, "port", "p", o.opts.Port, "HTTP port (0 = random)")
 	strVar(fs, &o.opts.Format, "format", "f", o.opts.Format, "wav or mp3")
 	intVar(fs, &o.opts.Bitrate, "bitrate", "b", o.opts.Bitrate, "MP3 bitrate in kbps")
@@ -210,21 +212,59 @@ func addStartFlags(fs *flag.FlagSet, o *startFlags) {
 	intVar(fs, &o.opts.Volume, "volume", "", -1, "set speaker volume (0-100)")
 	boolVar(fs, &o.opts.Keepalive, "keepalive", "", false, "re-tune Sonos if it stops")
 	boolVar(fs, &o.noTune, "no-tune", "", false, "only serve the stream")
-	fs.Var(&o.virtualSink, "virtual-sink", "create/use the Sinkrill output device (recommended)")
+	boolVar(fs, &o.mirror, "mirror", "", false, "mirror the current output instead of creating a device")
+	fs.Var(&o.virtualSink, "virtual-sink", "create/use the Sinkrill output device (default)")
 	strVar(fs, &o.opts.Station, "station", "", o.opts.Station, "station name shown on the speaker")
 	boolVar(fs, &o.verbose, "verbose", "v", false, "verbose logging")
 }
 
-// stream applies the two flags the flag package cannot express directly.
-func (o *startFlags) stream() sink.Options {
+// flagSet reports whether any of the names were given on the command line.
+// Aliases register separately, so both spellings have to be listed.
+func flagSet(fs *flag.FlagSet, names ...string) bool {
+	found := false
+	fs.Visit(func(f *flag.Flag) {
+		for _, name := range names {
+			if f.Name == name {
+				found = true
+			}
+		}
+	})
+	return found
+}
+
+// stream resolves the flags into the options sink.Run takes.
+//
+// Creating the Sinkrill device is the default, because a mirroring stream
+// plays every system sound twice (once locally, once in the room) and gives a
+// beginner no way to tell whether the tool works. --mirror and an explicit
+// --source are the two ways to ask for the old behaviour.
+func (o *startFlags) stream(fs *flag.FlagSet) (sink.Options, error) {
 	out := o.opts
 	if o.noTune {
 		out.Tune = false
 	}
-	if o.virtualSink.set {
-		out.VirtualSink = o.virtualSink.name
+
+	sinkGiven := flagSet(fs, "virtual-sink")
+	sourceGiven := flagSet(fs, "source", "s")
+
+	switch {
+	case o.mirror && sinkGiven:
+		return out, errors.New("--mirror and --virtual-sink ask for different audio sources; pick one")
+	case o.mirror:
+		out.VirtualSink = ""
+	case sinkGiven:
+		// --virtual-sink=false is the old spelling for "do not create one".
+		if !o.virtualSink.set {
+			out.VirtualSink = ""
+		} else {
+			out.VirtualSink = o.virtualSink.name
+		}
+	case sourceGiven:
+		// An explicit source is already a source; creating a device as well
+		// would silently ignore it.
+		out.VirtualSink = ""
 	}
-	return out
+	return out, nil
 }
 
 func runStart(args []string) int {
@@ -243,7 +283,11 @@ func runStart(args []string) int {
 		return 2
 	}
 
-	opts := start.stream()
+	opts, err := start.stream(fs)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sinkrill: %v\n", err)
+		return 2
+	}
 	log := logx.New(start.verbose)
 	ctx, stop := signalContext()
 	defer stop()
@@ -539,7 +583,7 @@ func runRetune(args []string) int {
 	log := logx.New(*verbose)
 	st, ok := localStatus(port)
 	if !ok {
-		log.Errorf("no sinkrill instance is listening on port %d; start one with `sinkrill --virtual-sink`", port)
+		log.Errorf("no sinkrill instance is listening on port %d; start one with `sinkrill`", port)
 		return 1
 	}
 	if st.URI == "" {
@@ -626,9 +670,9 @@ func runCleanup(args []string) int {
 // `sinkrill tui` into "start this stream and show it", so one command line
 // works with or without the panel.
 var streamFlags = []string{
-	"device", "d", "source", "s", "format", "f", "bitrate", "b", "warmup",
-	"host", "bind", "ffmpeg", "parec", "volume", "keepalive", "no-tune",
-	"virtual-sink", "station",
+	"device", "d", "source", "s", "mirror", "format", "f", "bitrate", "b",
+	"warmup", "host", "bind", "ffmpeg", "parec", "volume", "keepalive",
+	"no-tune", "virtual-sink", "station",
 }
 
 // tuiWantsStream reports whether the invocation asked for a new stream. Bare
@@ -689,7 +733,11 @@ func runTUI(args []string) int {
 	plan := tui.Options{Port: start.opts.Port, Verbose: start.verbose}
 
 	if withStream {
-		opts := start.stream()
+		opts, err := start.stream(fs)
+		if err != nil {
+			log.Errorf("%v", err)
+			return 2
+		}
 		if opts.Port == 0 {
 			log.Errorf("the panel needs a fixed --port; port 0 picks one it cannot find")
 			return 2

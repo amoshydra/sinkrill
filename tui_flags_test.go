@@ -37,6 +37,7 @@ func TestTUIWantsStream(t *testing.T) {
 		{"virtual sink starts a stream", []string{"--virtual-sink"}, true, false},
 		{"named virtual sink", []string{"--virtual-sink=kitchen"}, true, false},
 		{"no-tune starts a stream", []string{"--no-tune"}, true, false},
+		{"mirror starts a stream", []string{"--mirror"}, true, false},
 		{"format starts a stream", []string{"--format", "mp3"}, true, false},
 		{"volume starts a stream", []string{"--volume", "30"}, true, false},
 		{"explicit stream", []string{"--stream"}, true, false},
@@ -88,9 +89,71 @@ func TestTUIRoomArgumentIsRewritten(t *testing.T) {
 		t.Errorf("virtual sink = %+v, want sinkrill", start.virtualSink)
 	}
 
-	stream := start.stream()
+	stream, err := start.stream(fs)
+	if err != nil {
+		t.Fatalf("stream: %v", err)
+	}
 	if stream.Device != "Den" || stream.VirtualSink != "sinkrill" || !stream.Tune {
 		t.Errorf("stream options = %+v", stream)
+	}
+}
+
+// The output device is the default because a mirrored stream plays every sound
+// twice. Both --mirror and an explicit --source keep the old behaviour.
+func TestDefaultAudioSource(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		want    string
+		wantErr bool
+	}{
+		{"bare command creates the sink", nil, "sinkrill", false},
+		{"room only still creates the sink", []string{"-d", "Den"}, "sinkrill", false},
+		{"mirror disables it", []string{"--mirror"}, "", false},
+		{"mirror with a room", []string{"--mirror", "-d", "Den"}, "", false},
+		{"explicit source keeps mirroring", []string{"--source", "my.monitor"}, "", false},
+		{"short source keeps mirroring", []string{"-s", "my.monitor"}, "", false},
+		{"named sink", []string{"--virtual-sink=kitchen"}, "kitchen", false},
+		{"old false spelling disables it", []string{"--virtual-sink=false"}, "", false},
+		{"mirror and a sink conflict", []string{"--mirror", "--virtual-sink"}, "", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fs, start, _, _ := tuiFlagSet()
+			if err := fs.Parse(tc.args); err != nil {
+				t.Fatalf("parse %q: %v", tc.args, err)
+			}
+			opts, err := start.stream(fs)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected an error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if opts.VirtualSink != tc.want {
+				t.Errorf("VirtualSink = %q, want %q", opts.VirtualSink, tc.want)
+			}
+		})
+	}
+}
+
+// An explicitly configured sink keeps precedence over --source, because that is
+// how it behaved before the default flipped.
+func TestExplicitSinkWinsOverSource(t *testing.T) {
+	fs, start, _, _ := tuiFlagSet()
+	if err := fs.Parse([]string{"--virtual-sink", "--source", "my.monitor"}); err != nil {
+		t.Fatal(err)
+	}
+	opts, err := start.stream(fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.VirtualSink != "sinkrill" {
+		t.Errorf("VirtualSink = %q, want sinkrill", opts.VirtualSink)
 	}
 }
 

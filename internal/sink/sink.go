@@ -181,7 +181,7 @@ func newInstance(ctx context.Context, opts Options, log *logx.Logger) (*instance
 		if what == "@DEFAULT_MONITOR@" {
 			what = "the default output"
 		}
-		log.Infof("mirroring %s; no new audio device (use --virtual-sink for a selectable output)", what)
+		log.Infof("mirroring %s; no new audio device", what)
 	}
 
 	inst.hub = stream.NewHub(opts.WarmupMS, stream.BytesPerSecond(opts.Format, opts.Bitrate), log)

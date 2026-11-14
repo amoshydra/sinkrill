@@ -16,11 +16,11 @@ far less buffering than an internet-radio style MP3 stream: **~0.1 s** buffered
 instead of **~4.8 s** (measured; see [Latency](#latency)).
 
 ```bash
-sinkrill                                # stream this PC to the room, with the control panel
-sinkrill --virtual-sink                 # recommended: add a "Sinkrill" output device
-sinkrill "Living Room" --virtual-sink   # pick a room
-sinkrill --plain                        # keep the scrolling log instead of the panel
-sinkrill --no-tune                      # only serve the stream; tune the speaker yourself
+sinkrill                        # stream this PC, with the control panel
+sinkrill "Living Room"          # pick a room
+sinkrill --mirror               # mirror the current output instead
+sinkrill --plain                # keep the scrolling log instead of the panel
+sinkrill --no-tune              # only serve the stream; tune the speaker yourself
 ```
 
 One command does both jobs: it starts the stream, and in a terminal it draws a
@@ -28,16 +28,16 @@ live panel for volume, mute, play/pause, and retune. Nothing non-interactive
 changes — a service, `nohup`, a pipe, or a redirect gets plain logs instead of
 escape codes.
 
-`--virtual-sink` is still the recommended way to listen: it creates a real
-output device, so only the apps you route to it reach the room, with no echo.
-Without the flag, Sinkrill mirrors your current output instead: the PC and
-Sonos both play, and no new device appears.
+By default Sinkrill creates a real output device called **Sinkrill**, so only
+the apps you route to it reach the room, with no echo. Add `--mirror` to
+capture your current output instead: the PC and Sonos both play, and no new
+device appears.
 
 Press `Ctrl+C` (or `q` in the panel) to stop playback and shut down.
 
 ## Why
 
-- **Looks like a speaker.** `--virtual-sink` creates a real PipeWire/PulseAudio
+- **Looks like a speaker.** By default Sinkrill creates a real PipeWire/PulseAudio
   output device called **Sinkrill**, so you pick it in your audio settings or
   per-app.
 - **Stream and controls together.** In a terminal, one command starts the audio
@@ -53,12 +53,12 @@ Press `Ctrl+C` (or `q` in the panel) to stop playback and shut down.
 The only real choice is what gets captured. Both options start the same way:
 one command, stream plus panel.
 
-### Output device (recommended)
+### Output device (default)
 
-`--virtual-sink` creates a PipeWire/PulseAudio output named **Sinkrill**:
+Sinkrill creates a PipeWire/PulseAudio output named **Sinkrill**:
 
 ```bash
-sinkrill --virtual-sink
+sinkrill
 ```
 
 Pick **Sinkrill** in your audio settings (or per-app in `pavucontrol`), and only
@@ -66,10 +66,11 @@ the audio routed to it goes to Sonos. The device disappears when Sinkrill exits.
 
 ### Mirror the current output
 
-Without the flag, Sinkrill captures whatever is playing on your default output:
+`--mirror` captures whatever is playing on your default output and leaves the
+device list alone:
 
 ```bash
-sinkrill
+sinkrill --mirror
 ```
 
 The PC and Sonos both play, and no new device appears. Use this when you just
@@ -98,9 +99,9 @@ also what happens automatically when the output is not a terminal.
                       SetAVTransportURI
 ```
 
-1. `parec` records the monitor of your current audio output
-   (`@DEFAULT_MONITOR@`), or of the virtual **Sinkrill** device created by
-   `--virtual-sink`. If `parec` is missing, `ffmpeg -f pulse` is used instead.
+1. `parec` records the monitor of the virtual **Sinkrill** device, or of your
+   current audio output with `--mirror` (or an explicit `--source`). If
+   `parec` is missing, `ffmpeg -f pulse` is used instead.
 2. The bytes are served as a continuous 48 kHz/16-bit stereo WAV stream.
 3. Sonos is told to play `http://<lan-ip>:<port>/stream.wav`. Because that looks
    like a file rather than internet radio, Sonos skips its multi-second
@@ -198,17 +199,17 @@ make install    # installs to /usr/local/bin (PREFIX=/... to override)
 ## Usage
 
 ```bash
-# One command: stream plus the control panel
-sinkrill --virtual-sink                 # recommended audio source
-sinkrill "Living Room" --virtual-sink   # pick a room
-sinkrill --device 192.168.1.42 --virtual-sink
+# Default: create a "Sinkrill" output device, and open the panel
+sinkrill
+sinkrill "Living Room"                  # pick a room
+sinkrill --device 192.168.1.42
 
 # Mirror the current output instead (no new device)
-sinkrill
-sinkrill "Living Room"
+sinkrill --mirror
+sinkrill "Living Room" --mirror
 
 # Keep the scrolling log instead of the panel
-sinkrill --virtual-sink --plain
+sinkrill --plain
 
 # List what's on the network
 sinkrill devices
@@ -255,7 +256,7 @@ free port.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-d, --device <name\|ip>` | auto | Sonos room name (partial match) or IP address |
-| `-s, --source <source>` | `@DEFAULT_MONITOR@` | PulseAudio/PipeWire source to record |
+| `-s, --source <source>` | current output | PulseAudio/PipeWire source to record; implies `--mirror` |
 | `-p, --port <port>` | `8567` | HTTP port (`0` picks a free one) |
 | `-f, --format <wav\|mp3>` | `wav` | `wav` = lowest latency (~1.5 Mbps); `mp3` = ~192 kbps, more buffering |
 | `-b, --bitrate <kbps>` | `192` | MP3 bitrate, only used with `--format mp3` |
@@ -267,7 +268,8 @@ free port.
 | `--volume <0-100>` | unchanged | Set the speaker volume on start |
 | `--keepalive` | off | Re-tune if the speaker stops by itself |
 | `--no-tune` | off | Don't control Sonos; only serve the stream |
-| `--virtual-sink [name]` | off | Create the **Sinkrill** output device (recommended); default name `sinkrill` |
+| `--mirror` | off | Mirror the current output; creates no device |
+| `--virtual-sink [name]` | on (`sinkrill`) | Create/use the **Sinkrill** output device; `--virtual-sink=false` disables it |
 | `--station <name>` | `<hostname> streaming audio` | Name shown on the speaker |
 | `--plain` | off | Log to the terminal instead of showing the panel |
 | `-v, --verbose` | off | Verbose logs |
@@ -320,13 +322,13 @@ still running. `--keepalive` re-tunes within ~20 s, or run `sinkrill retune`
 to restart the clock. MP3 mode uses a radio scheme with no length at all, so
 it has no such horizon.
 
-## Output device mode (recommended)
+## Output device mode (default)
 
-`--virtual-sink` creates a real output device called **Sinkrill** in
+Sinkrill creates a real output device called **Sinkrill** in
 PipeWire/PulseAudio:
 
 ```bash
-sinkrill --virtual-sink
+sinkrill
 ```
 
 Now choose **Sinkrill** as the output in your desktop audio settings (or per-app in
@@ -339,8 +341,8 @@ visible: while no application is connected to it, the `Hint` line names the
 device you need to pick.
 
 ```bash
-sinkrill --virtual-sink sinkrill          # explicit name
-sinkrill --virtual-sink my-tv-sink     # any valid sink name
+sinkrill --virtual-sink sinkrill        # explicit name
+sinkrill --virtual-sink my-tv-sink      # any valid sink name
 ```
 
 If you'd rather own the device yourself (so it survives restarts), create it
@@ -354,6 +356,9 @@ pactl load-module module-null-sink \
 sinkrill --source sinkrill.monitor
 ```
 
+An explicit `--source` names an existing source, so Sinkrill captures it
+without creating a device of its own.
+
 ## Control
 
 Sinkrill runs in the foreground. `Ctrl+C` stops the speaker, kills the capture
@@ -361,13 +366,13 @@ process, removes the virtual device, and exits.
 
 | What | How |
 |------|-----|
-| Start / stop | `sinkrill --virtual-sink` / `Ctrl+C`, `q` in the panel, or `sinkrill stop "Living Room"` |
+| Start / stop | `sinkrill` / `Ctrl+C`, `q` in the panel, or `sinkrill stop "Living Room"` |
 | Volume | `sinkrill volume 40` while running, `sinkrill volume +5` / `mute`, or `--volume 40` on start |
 | Panel | Opens with the stream in a terminal. `sinkrill tui` attaches to a running stream from another terminal; `--plain` keeps the scrolling log instead |
 | Re-tune | `sinkrill retune` — points the room back at the running stream, e.g. after another device took it |
 | Leftovers | `sinkrill cleanup` — removes the output device and stray capture process after a `kill -9` or crash |
 | Pause / resume | The panel, or the Sonos app; long pauses may drop the stream connection, then restart `sinkrill` (or run with `--keepalive`) |
-| Change room | stop, then `sinkrill "Other Room" --virtual-sink` |
+| Change room | stop, then `sinkrill "Other Room"` |
 | Inspect | `sinkrill status` (or `curl http://<lan-ip>:8567/status`) |
 | Preview | open `http://<lan-ip>:8567/stream.wav` in VLC or a browser |
 
@@ -418,7 +423,7 @@ Add a room or any stream option and it starts the stream itself, exactly as
 `sinkrill` would:
 
 ```bash
-sinkrill tui "Living Room" --virtual-sink
+sinkrill tui "Living Room"
 ```
 
 After the panel closes, a short summary stays in the terminal — room, station,
