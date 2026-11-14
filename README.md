@@ -16,28 +16,42 @@ far less buffering than an internet-radio style MP3 stream: **~0.1 s** buffered
 instead of **~4.8 s** (measured; see [Latency](#latency)).
 
 ```bash
+sinkrill                                # stream this PC to the room, with the control panel
 sinkrill --virtual-sink                 # recommended: add a "Sinkrill" output device
 sinkrill "Living Room" --virtual-sink   # pick a room
-sinkrill --no-tune                      # only serve the stream; tune Sonos yourself
+sinkrill --plain                        # keep the scrolling log instead of the panel
+sinkrill --no-tune                      # only serve the stream; tune the speaker yourself
 ```
 
-Without `--virtual-sink`, Sinkrill mirrors your current output instead: the PC and
+One command does both jobs: it starts the stream, and in a terminal it draws a
+live panel for volume, mute, play/pause, and retune. Nothing non-interactive
+changes — a service, `nohup`, a pipe, or a redirect gets plain logs instead of
+escape codes.
+
+`--virtual-sink` is still the recommended way to listen: it creates a real
+output device, so only the apps you route to it reach the room, with no echo.
+Without the flag, Sinkrill mirrors your current output instead: the PC and
 Sonos both play, and no new device appears.
 
-Press `Ctrl+C` to stop playback and shut down.
+Press `Ctrl+C` (or `q` in the panel) to stop playback and shut down.
 
 ## Why
 
 - **Looks like a speaker.** `--virtual-sink` creates a real PipeWire/PulseAudio
   output device called **Sinkrill**, so you pick it in your audio settings or
   per-app.
+- **Stream and controls together.** In a terminal, one command starts the audio
+  and opens the panel. A service, pipe, or redirect keeps plain logs instead.
 - **Low latency by default.** WAV over plain HTTP avoids Sonos's internet-radio
   pre-buffer: ~0.1 s buffered, measured, instead of ~4.8 s with MP3.
 - **No Node, no npm, no Icecast.** One static binary; it shells out to
   `parec`/`pactl` (already part of your audio stack) and optionally `ffmpeg`.
 - **No cloud, no account.** Audio never leaves your LAN.
 
-## Two ways to use it
+## Two audio sources, one command
+
+The only real choice is what gets captured. Both options start the same way:
+one command, stream plus panel.
 
 ### Output device (recommended)
 
@@ -61,10 +75,9 @@ sinkrill
 The PC and Sonos both play, and no new device appears. Use this when you just
 want the room to hear what the PC is playing.
 
-Whichever you choose, running it in a terminal opens the control panel: the
-stream and its controls in one window. Add `--plain` to keep the scrolling log
-instead, which is also what happens automatically when the output is not a
-terminal — a service, `nohup`, a pipe, or a redirect.
+In a terminal, both commands also open the control panel — the stream and its
+controls in one window. Add `--plain` to keep the scrolling log instead; that is
+also what happens automatically when the output is not a terminal.
 
 ## How it works
 
@@ -185,11 +198,9 @@ make install    # installs to /usr/local/bin (PREFIX=/... to override)
 ## Usage
 
 ```bash
-# Recommended: add the "Sinkrill" output device
-sinkrill --virtual-sink
-
-# Choose a room by name, or a speaker by IP
-sinkrill "Living Room" --virtual-sink
+# One command: stream plus the control panel
+sinkrill --virtual-sink                 # recommended audio source
+sinkrill "Living Room" --virtual-sink   # pick a room
 sinkrill --device 192.168.1.42 --virtual-sink
 
 # Mirror the current output instead (no new device)
@@ -218,11 +229,11 @@ sinkrill retune
 # What the running instance is doing
 sinkrill status
 
-# Live panel: volume, mute, play/pause, retune
+# Panel only: watch a stream that is already running
 sinkrill tui
 
-# Panel and stream in one command
-sinkrill tui "Living Room" --virtual-sink
+# Control a different room without starting anything
+sinkrill tui --attach --device "Kitchen"
 
 # Serve only: prints the URL to paste into the Sonos app
 sinkrill --no-tune
@@ -350,9 +361,9 @@ process, removes the virtual device, and exits.
 
 | What | How |
 |------|-----|
-| Start / stop | `sinkrill --virtual-sink` / `Ctrl+C` (or `sinkrill stop "Living Room"`) |
+| Start / stop | `sinkrill --virtual-sink` / `Ctrl+C`, `q` in the panel, or `sinkrill stop "Living Room"` |
 | Volume | `sinkrill volume 40` while running, `sinkrill volume +5` / `mute`, or `--volume 40` on start |
-| Panel | `sinkrill tui` — live volume, mute, play/pause, stop, and re-tune; or `sinkrill tui "Living Room" --virtual-sink` to start the stream there too |
+| Panel | Opens with the stream in a terminal. `sinkrill tui` attaches to a running stream from another terminal; `--plain` keeps the scrolling log instead |
 | Re-tune | `sinkrill retune` — points the room back at the running stream, e.g. after another device took it |
 | Leftovers | `sinkrill cleanup` — removes the output device and stray capture process after a `kill -9` or crash |
 | Pause / resume | The panel, or the Sonos app; long pauses may drop the stream connection, then restart `sinkrill` (or run with `--keepalive`) |
@@ -362,10 +373,11 @@ process, removes the virtual device, and exits.
 
 ### Control panel
 
-Start a stream in a terminal (`sinkrill --virtual-sink`, or any variant) and the
-panel opens with it: room, volume, capture health, and buffering in one window.
-Bare `sinkrill tui` opens the same panel without starting anything, which is
-handy next to a stream that is already running.
+Run `sinkrill` in a terminal and the stream and panel come up together: room,
+volume, capture health, and buffering in one window. There is no second
+command to start and no `tui` flag to remember. `sinkrill tui` opens the same
+panel without starting anything, which is useful when the stream is already
+running in another terminal or under a service.
 
 ```text
  sinkrill  homedesktop streaming audio
@@ -394,22 +406,20 @@ panel says so instead of leaving you with silence and no clue:
 do the same). `n`/`b` skip within the room's queue, which only does something
 when the room is playing an album or playlist rather than this stream. `r`
 points the room back at this stream, the same as `sinkrill retune`. `q`, `Esc`,
-and `Ctrl+C` all leave the panel. A panel that started the stream also stops it;
-a panel that attached leaves the stream running.
+and `Ctrl+C` all leave the panel. A panel that started the stream also stops it:
+the speaker, the capture process, and the virtual device are all released before
+the terminal is handed back. A panel that attached leaves the stream running.
+While it runs, the stream's own log lines appear in the panel instead of
+printing over it.
 
-Bare `sinkrill tui` attaches to the instance that is already running — started
-in another terminal, by a service, or by an older binary. Add a room or any
-stream option and the panel starts the stream itself, exactly as `sinkrill`
-would:
+`sinkrill tui` on its own attaches to the instance already running — started in
+another terminal or as a service — and leaves it running when the panel closes.
+Add a room or any stream option and it starts the stream itself, exactly as
+`sinkrill` would:
 
 ```bash
 sinkrill tui "Living Room" --virtual-sink
 ```
-
-That is one command for audio plus controls. Quitting it (`q`) stops the
-stream: the speaker, the capture process, and the virtual device are all
-released before the terminal is handed back. While it runs, the stream's own
-log lines appear in the panel instead of printing over it.
 
 After the panel closes, a short summary stays in the terminal — room, station,
 stream URL, and how much was captured — so the useful parts of the log survive:
@@ -440,6 +450,9 @@ stream's formatting, capture, or port.
 The unit runs `/usr/bin/sinkrill`, which is where the Arch package puts it. If
 you installed the binary somewhere else, point `ExecStart` at it.
 
+A service has no terminal, so it logs to the journal and never draws the panel.
+That is automatic; there is no flag to set.
+
 ```bash
 mkdir -p ~/.config/systemd/user
 cp contrib/systemd/sinkrill.service ~/.config/systemd/user/
@@ -458,7 +471,17 @@ journalctl --user -u sinkrill -f
 
 ## If you hear nothing
 
-Run:
+Check the panel first. If it shows:
+
+```text
+  Hint      no app is using "sinkrill" yet; pick it as your output device
+```
+
+then the stream is healthy and silent because no application is routed to the
+virtual device. Pick **Sinkrill** as the output in your sound settings. This is
+the most common cause, and nothing needs fixing.
+
+If the panel shows something else, or you are running without it, run:
 
 ```bash
 sinkrill doctor
