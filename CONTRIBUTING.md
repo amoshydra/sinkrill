@@ -53,8 +53,17 @@ Releases are automated with [Release Please](https://github.com/googleapis/relea
 Release PRs opened with `GITHUB_TOKEN` do not trigger CI (GitHub suppresses
 token-created events); the merge commit on `main` does.
 
-The AUR `PKGBUILD` is updated manually per release: bump `pkgver`, run
-`updpkgsums`, rebuild to regenerate `.SRCINFO`, and push to the AUR.
+The AUR `PKGBUILD` in `contrib/aur` is bumped automatically after a release:
+the `aur` job in `release-please.yml` points `pkgver` at the new tag, recomputes
+`sha256sums` from the release tarball, and commits the result. It runs after the
+tag exists, which is why the bump cannot be part of the release PR itself.
+
+If that job fails, run the `AUR` workflow from the Actions tab with the missing
+version (for example `0.4.0`); it takes the same path.
+
+Pushing the package to the AUR is still manual until it is accepted there: copy
+`contrib/aur/PKGBUILD` into a clone of the AUR repository, regenerate
+`.SRCINFO` with `makepkg --printsrcinfo > .SRCINFO`, review, and push.
 
 ## Reporting bugs
 

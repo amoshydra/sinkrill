@@ -67,3 +67,13 @@ jobs:
             sinkrill-linux-amd64.sha256
             sinkrill-linux-arm64
             sinkrill-linux-arm64.sha256
+
+  # The PKGBUILD pins the release tarball, so it can only be updated after the
+  # tag exists. Running it here also dodges the GITHUB_TOKEN event suppression
+  # described above.
+  aur:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    uses: ./.github/workflows/aur.yml
+    with:
+      version: ${{ needs.release-please.outputs.version }}

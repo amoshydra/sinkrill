@@ -1,0 +1,82 @@
+name: AUR
+
+# The PKGBUILD cannot ride along with the release PR: its checksum is taken
+# from the release tarball, and that tarball only exists once the tag is
+# created by merging that PR. So the bump happens after the release, from the
+# same workflow run that creates it.
+#
+# This is a reusable workflow rather than a `release: published` trigger on
+# purpose. Events created with GITHUB_TOKEN do not start other workflows, and
+# release-please publishes with that token, so a separate release-triggered
+# workflow would silently never run.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version, without the leading v
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, without the leading v (for example 0.4.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aur-pkgbuild
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Point the PKGBUILD at the release
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          cd contrib/aur
+          url="https://github.com/${GITHUB_REPOSITORY}/archive/v${VERSION}.tar.gz"
+          sum=$(curl -fsSL "$url" | sha256sum | cut -d' ' -f1)
+
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" PKGBUILD
+          sed -i "s/^sha256sums=.*/sha256sums=('${sum}')/" PKGBUILD
+
+          # Fail here instead of pushing a PKGBUILD that cannot build.
+          grep -qx "pkgver=${VERSION}" PKGBUILD
+          grep -qx "sha256sums=('${sum}')" PKGBUILD
+          echo "contrib/aur now pins ${VERSION} (${sum})"
+
+      - name: Commit the bump
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- contrib/aur; then
+            echo "contrib/aur already pins ${VERSION}; nothing to commit"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add contrib/aur
+          git commit -m "chore(aur): bump PKGBUILD to ${VERSION}"
+
+          # A human push can land between checkout and this step.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            git pull --rebase --autostash origin main
+          done
+          exit 1

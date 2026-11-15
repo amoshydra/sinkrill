@@ -181,7 +181,7 @@ A `PKGBUILD` is in [`contrib/aur`](contrib/aur). Once the package is in the AUR:
 yay -S sinkrill
 ```
 
-Until then, build it straight from the repo — it pins the released `v0.2.0`
+Until then, build it straight from the repo — it pins the latest released
 tarball:
 
 ```bash
