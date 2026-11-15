@@ -135,7 +135,8 @@ Usage:
 
 Options for start and tui:
   -d, --device <name|ip>    Sonos room name or IP (auto-detected if only one)
-  -s, --source <source>     PulseAudio/PipeWire source (implies --mirror)
+  -s, --source <source>     PulseAudio/PipeWire source (implies --mirror;
+                            not with --virtual-sink)
   -p, --port <port>         HTTP port (default 8567, 0 picks a free one)
   -f, --format <wav|mp3>    wav = lowest latency, mp3 = lower bandwidth
   -b, --bitrate <kbps>      MP3 bitrate (default 192)
@@ -201,7 +202,7 @@ func addStartFlags(fs *flag.FlagSet, o *startFlags) {
 	}
 
 	strVar(fs, &o.opts.Device, "device", "d", "", "Sonos room name or IP")
-	strVar(fs, &o.opts.Source, "source", "s", o.opts.Source, "PulseAudio/PipeWire source (implies --mirror)")
+	strVar(fs, &o.opts.Source, "source", "s", o.opts.Source, "PulseAudio/PipeWire source (implies --mirror; not with --virtual-sink)")
 	intVar(fs, &o.opts.Port, "port", "p", o.opts.Port, "HTTP port (0 = random)")
 	strVar(fs, &o.opts.Format, "format", "f", o.opts.Format, "wav or mp3")
 	intVar(fs, &o.opts.Bitrate, "bitrate", "b", o.opts.Bitrate, "MP3 bitrate in kbps")
