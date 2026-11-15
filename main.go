@@ -249,10 +249,12 @@ func (o *startFlags) stream(fs *flag.FlagSet) (sink.Options, error) {
 	sourceGiven := flagSet(fs, "source", "s")
 
 	switch {
-	case o.mirror && sinkGiven:
+	case o.mirror && sinkGiven && o.virtualSink.set:
 		return out, errors.New("--mirror and --virtual-sink ask for different audio sources; pick one")
 	case o.mirror:
 		out.VirtualSink = ""
+	case sinkGiven && o.virtualSink.set && sourceGiven:
+		return out, errors.New("--virtual-sink captures its own monitor; --source would be ignored")
 	case sinkGiven:
 		// --virtual-sink=false is the old spelling for "do not create one".
 		if !o.virtualSink.set {

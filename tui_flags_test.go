@@ -116,6 +116,9 @@ func TestDefaultAudioSource(t *testing.T) {
 		{"named sink", []string{"--virtual-sink=kitchen"}, "kitchen", false},
 		{"old false spelling disables it", []string{"--virtual-sink=false"}, "", false},
 		{"mirror and a sink conflict", []string{"--mirror", "--virtual-sink"}, "", true},
+		{"mirror and a disabled sink agree", []string{"--mirror", "--virtual-sink=false"}, "", false},
+		{"sink with a source would ignore it", []string{"--virtual-sink", "--source", "my.monitor"}, "", true},
+		{"disabled sink leaves the source alone", []string{"--virtual-sink=false", "--source", "my.monitor"}, "", false},
 	}
 
 	for _, tc := range tests {
@@ -138,22 +141,6 @@ func TestDefaultAudioSource(t *testing.T) {
 				t.Errorf("VirtualSink = %q, want %q", opts.VirtualSink, tc.want)
 			}
 		})
-	}
-}
-
-// An explicitly configured sink keeps precedence over --source, because that is
-// how it behaved before the default flipped.
-func TestExplicitSinkWinsOverSource(t *testing.T) {
-	fs, start, _, _ := tuiFlagSet()
-	if err := fs.Parse([]string{"--virtual-sink", "--source", "my.monitor"}); err != nil {
-		t.Fatal(err)
-	}
-	opts, err := start.stream(fs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if opts.VirtualSink != "sinkrill" {
-		t.Errorf("VirtualSink = %q, want sinkrill", opts.VirtualSink)
 	}
 }
 
