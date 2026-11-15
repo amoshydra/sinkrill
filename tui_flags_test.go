@@ -42,8 +42,12 @@ func TestTUIWantsStream(t *testing.T) {
 		{"volume starts a stream", []string{"--volume", "30"}, true, false},
 		{"explicit stream", []string{"--stream"}, true, false},
 
-		{"attach plus stream options is a mistake", []string{"--attach", "--device", "Den"}, false, true},
+		{"attach plus stream options is a mistake", []string{"--attach", "--mirror"}, false, true},
 		{"attach plus explicit stream is a mistake", []string{"--attach", "--stream"}, false, true},
+
+		// With --attach, a room names what to control, not what to start.
+		{"attach controls a named room", []string{"--attach", "--device", "Den"}, false, false},
+		{"attach controls a short-named room", []string{"--attach", "-d", "Den"}, false, false},
 	}
 
 	for _, tc := range tests {

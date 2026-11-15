@@ -717,12 +717,18 @@ var streamFlags = []string{
 // tuiWantsStream reports whether the invocation asked for a new stream. Bare
 // `sinkrill tui` attaches to whatever is running; anything that names a room or
 // audio starts one.
+//
+// With an explicit --attach, a room stops being a request to start: it names
+// the room to control while watching a stream that already runs somewhere else.
 func tuiWantsStream(fs *flag.FlagSet, attach, stream bool) (bool, error) {
 	set := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
 
 	wanted := false
 	for _, name := range streamFlags {
+		if attach && (name == "device" || name == "d") {
+			continue
+		}
 		if set[name] {
 			wanted = true
 			break
