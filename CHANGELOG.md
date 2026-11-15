@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0](https://github.com/amoshydra/sinkrill/compare/v0.3.1...v0.4.0) (2026-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* make the Sinkrill output device the default
+
+### Features
+
+* let bare sinkrill attach to a running stream ([8ad879b](https://github.com/amoshydra/sinkrill/commit/8ad879bfe9169c11eb7a546eaae384a6dc95d488))
+* let the panel start the stream it is watching ([73b2006](https://github.com/amoshydra/sinkrill/commit/73b2006b2519a650653d81f2bdf1e4543893cc23))
+* make the Sinkrill output device the default ([c4352ee](https://github.com/amoshydra/sinkrill/commit/c4352ee691d901fb34d13a03b37681b1bfabcc1e))
+* open the panel by default, and explain silence ([a7a6bbb](https://github.com/amoshydra/sinkrill/commit/a7a6bbb8321a95698c5f20e6db2695cb8c58d08e))
+
+
+### Bug Fixes
+
+* let tui --attach name the room to control ([bf81f03](https://github.com/amoshydra/sinkrill/commit/bf81f0359d901e4f21b96b9a4baf194f6d5d2c1e))
+* reject a source the virtual sink would ignore ([11b3d8f](https://github.com/amoshydra/sinkrill/commit/11b3d8ff6683ec4111f1a4f41aa72524b11e95ad))
+* say what an attached panel actually attached to ([9865caa](https://github.com/amoshydra/sinkrill/commit/9865caa391f60cde24b9dfa465a1864efae20e53))
+
 ## [0.3.1](https://github.com/amoshydra/sinkrill/compare/v0.3.0...v0.3.1) (2026-11-14)
 
 
